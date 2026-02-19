@@ -19,12 +19,19 @@ type ItemCarrinho = {
 }
 
 const iconesCategoria: Record<string, string> = {
+  'cadeiras de praia': '🏖️',
   'Cadeiras de praia': '🏖️',
+  'guarda sol': '⛱️',
   'Guarda sol': '⛱️',
-  'Bebidas alcoolicas': '🍹',
-  'Bebidas não alcoolicas': '🥤',
+  'bebidas alcoolicas': '🍹',
+  'Bebidas alcoólicas': '🍹',
+  'bebidas não alcoolicas': '🥤',
+  'Bebidas não alcoólicas': '🥤',
+  'para petiscar': '🍤',
   'Para petiscar': '🍤',
+  'pratos': '🍽️',
   'Pratos': '🍽️',
+  'sobremesas': '🍰',
   'Sobremesas': '🍰',
 }
 
