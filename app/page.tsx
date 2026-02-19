@@ -12,15 +12,43 @@ type Produto = {
   ativo: boolean
 }
 
-// 🎨 Categorias com ícones (modelo praia profissional)
+// 🎨 Categorias com ícone + imagem de capa
 const CATEGORIAS = [
-  { nome: 'Cadeiras de Praia', icone: '🪑' },
-  { nome: 'Guarda-sol', icone: '☂️' },
-  { nome: 'Bebidas não alcoólicas', icone: '🥤' },
-  { nome: 'Bebidas alcoólicas', icone: '🍹' },
-  { nome: 'Para petiscar', icone: '🍤' },
-  { nome: 'Pratos', icone: '🍽️' },
-  { nome: 'Sobremesas', icone: '🍨' },
+  {
+    nome: 'Cadeiras de Praia',
+    icone: '🪑',
+    capa: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
+  },
+  {
+    nome: 'Guarda-sol',
+    icone: '☂️',
+    capa: 'https://images.unsplash.com/photo-1526779259212-939e64788e3c',
+  },
+  {
+    nome: 'Bebidas não alcoólicas',
+    icone: '🥤',
+    capa: 'https://images.unsplash.com/photo-1544145945-f90425340c7e',
+  },
+  {
+    nome: 'Bebidas alcoólicas',
+    icone: '🍹',
+    capa: 'https://images.unsplash.com/photo-1514361892635-cebb7e6b3e56',
+  },
+  {
+    nome: 'Para petiscar',
+    icone: '🍤',
+    capa: 'https://images.unsplash.com/photo-1604908554025-0c0a1e0b8c45',
+  },
+  {
+    nome: 'Pratos',
+    icone: '🍽️',
+    capa: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+  },
+  {
+    nome: 'Sobremesas',
+    icone: '🍨',
+    capa: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e',
+  },
 ]
 
 function Cardapio() {
@@ -31,6 +59,10 @@ function Cardapio() {
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('Cadeiras de Praia')
   const [loading, setLoading] = useState(true)
   const [mensagem, setMensagem] = useState('')
+
+  const categoriaAtual = CATEGORIAS.find(
+    (c) => c.nome === categoriaAtiva
+  )
 
   useEffect(() => {
     async function fetchProdutos() {
@@ -83,16 +115,35 @@ function Cardapio() {
   }
 
   if (loading) {
-    return (
-      <p style={{ color: '#0a2540', fontWeight: '500' }}>
-        Carregando cardápio...
-      </p>
-    )
+    return <p style={{ color: '#0a2540' }}>Carregando cardápio...</p>
   }
 
   return (
     <>
-      {/* 🔵 Abas com ícones (sticky topo) */}
+      {/* 🖼️ IMAGEM DE CAPA DA CATEGORIA */}
+      {categoriaAtual && (
+        <div
+          style={{
+            width: '100%',
+            height: '140px',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            marginBottom: '16px',
+          }}
+        >
+          <img
+            src={categoriaAtual.capa}
+            alt={categoriaAtual.nome}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        </div>
+      )}
+
+      {/* 🔵 ABAS COM ÍCONES */}
       <div
         style={{
           display: 'flex',
@@ -236,12 +287,7 @@ export default function Home() {
         PraiaFlow 🌊
       </h1>
 
-      <h2
-        style={{
-          color: '#1e88e5',
-          marginBottom: '20px',
-        }}
-      >
+      <h2 style={{ color: '#1e88e5', marginBottom: '20px' }}>
         Serviço de Praia
       </h2>
 
