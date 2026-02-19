@@ -12,15 +12,15 @@ type Produto = {
   ativo: boolean
 }
 
-// 🎯 CATEGORIAS FIXAS (modelo profissional de praia)
-const CATEGORIAS_FIXAS = [
-  'Cadeiras de Praia',
-  'Guarda-sol',
-  'Bebidas não alcoólicas',
-  'Bebidas alcoólicas',
-  'Para petiscar',
-  'Pratos',
-  'Sobremesas',
+// 🎨 Categorias com ícones (modelo praia profissional)
+const CATEGORIAS = [
+  { nome: 'Cadeiras de Praia', icone: '🪑' },
+  { nome: 'Guarda-sol', icone: '☂️' },
+  { nome: 'Bebidas não alcoólicas', icone: '🥤' },
+  { nome: 'Bebidas alcoólicas', icone: '🍹' },
+  { nome: 'Para petiscar', icone: '🍤' },
+  { nome: 'Pratos', icone: '🍽️' },
+  { nome: 'Sobremesas', icone: '🍨' },
 ]
 
 function Cardapio() {
@@ -83,12 +83,16 @@ function Cardapio() {
   }
 
   if (loading) {
-    return <p style={{ color: '#0a2540' }}>Carregando cardápio...</p>
+    return (
+      <p style={{ color: '#0a2540', fontWeight: '500' }}>
+        Carregando cardápio...
+      </p>
+    )
   }
 
   return (
     <>
-      {/* 🔵 ABAS FIXAS POR CATEGORIA (ESTILO APP PROFISSIONAL) */}
+      {/* 🔵 Abas com ícones (sticky topo) */}
       <div
         style={{
           display: 'flex',
@@ -102,11 +106,14 @@ function Cardapio() {
           zIndex: 10,
         }}
       >
-        {CATEGORIAS_FIXAS.map((categoria) => (
+        {CATEGORIAS.map((cat) => (
           <button
-            key={categoria}
-            onClick={() => setCategoriaAtiva(categoria)}
+            key={cat.nome}
+            onClick={() => setCategoriaAtiva(cat.nome)}
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
               padding: '10px 16px',
               borderRadius: '999px',
               border: 'none',
@@ -114,16 +121,18 @@ function Cardapio() {
               fontWeight: '600',
               cursor: 'pointer',
               background:
-                categoriaAtiva === categoria ? '#1e88e5' : '#e3f2fd',
-              color: categoriaAtiva === categoria ? '#fff' : '#0a2540',
+                categoriaAtiva === cat.nome ? '#1e88e5' : '#e3f2fd',
+              color: categoriaAtiva === cat.nome ? '#fff' : '#0a2540',
               boxShadow:
-                categoriaAtiva === categoria
-                  ? '0 4px 12px rgba(30,136,229,0.4)'
+                categoriaAtiva === cat.nome
+                  ? '0 4px 12px rgba(30,136,229,0.35)'
                   : 'none',
               transition: '0.2s',
+              fontSize: '15px',
             }}
           >
-            {categoria}
+            <span style={{ fontSize: '18px' }}>{cat.icone}</span>
+            {cat.nome}
           </button>
         ))}
       </div>
@@ -134,7 +143,7 @@ function Cardapio() {
             background: '#e3f2fd',
             color: '#0a2540',
             padding: '12px',
-            borderRadius: '10px',
+            borderRadius: '12px',
             marginBottom: '16px',
             fontWeight: 'bold',
           }}
@@ -195,6 +204,7 @@ function Cardapio() {
                 fontWeight: 'bold',
                 fontSize: '17px',
                 cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(30,136,229,0.35)',
               }}
             >
               Pedir 🏖️
@@ -216,12 +226,23 @@ export default function Home() {
         minHeight: '100vh',
       }}
     >
-      <h1 style={{ color: '#0a2540', fontSize: '28px', fontWeight: '700' }}>
+      <h1
+        style={{
+          color: '#0a2540',
+          fontSize: '28px',
+          fontWeight: '700',
+        }}
+      >
         PraiaFlow 🌊
       </h1>
 
-      <h2 style={{ color: '#1e88e5', marginBottom: '20px' }}>
-        Cardápio Digital
+      <h2
+        style={{
+          color: '#1e88e5',
+          marginBottom: '20px',
+        }}
+      >
+        Serviço de Praia
       </h2>
 
       <Suspense fallback={<p>Carregando...</p>}>
