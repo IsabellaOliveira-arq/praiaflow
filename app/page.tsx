@@ -17,22 +17,33 @@ function Cardapio() {
 
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [mensagem, setMensagem] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchProdutos() {
       if (!barracaId) return
 
+      // 🔥 CACHE LOCAL (acelera MUITO no celular)
+      const cacheKey = `produtos_${barracaId}`
+      const cache = localStorage.getItem(cacheKey)
+
+      if (cache) {
+        setProdutos(JSON.parse(cache))
+        setLoading(false)
+      }
+
+      // Busca atualizada no banco (em segundo plano)
       const { data, error } = await supabase
         .from('produtos')
-        .select('*')
+        .select('id, nome, preco, barraca_id') // query mais leve
         .eq('barraca_id', barracaId)
 
-      if (error) {
-        console.error('Erro ao buscar produtos:', error)
-      } else {
-        setProdutos(data || [])
+      if (!error && data) {
+        setProdutos(data)
+        localStorage.setItem(cacheKey, JSON.stringify(data)) // salva cache
       }
+
+      setLoading(false)
     }
 
     fetchProdutos()
@@ -44,7 +55,6 @@ function Cardapio() {
       return
     }
 
-    setLoading(true)
     setMensagem('Enviando pedido...')
 
     const { error } = await supabase.from('pedidos').insert([
@@ -56,17 +66,19 @@ function Cardapio() {
     ])
 
     if (error) {
-      console.error('Erro ao criar pedido:', error)
+      console.error(error)
       setMensagem('Erro ao fazer pedido 😢')
     } else {
       setMensagem(`Pedido de ${produto.nome} realizado! 🏖️`)
     }
-
-    setLoading(false)
   }
 
   if (!barracaId) {
     return <p>QR Code da barraca não encontrado.</p>
+  }
+
+  if (loading) {
+    return <p>Carregando cardápio da barraca...</p>
   }
 
   return (
@@ -89,33 +101,34 @@ function Cardapio() {
           <div
             key={produto.id}
             style={{
-              border: '1px solid #444',
-              padding: '16px',
+              border: '1px solid #ddd',
+              padding: '14px',
               marginBottom: '12px',
               borderRadius: '12px',
-              background: '#111',
-              maxWidth: '400px',
+              background: '#ffffff',
+              maxWidth: '420px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             }}
           >
-            <h3>{produto.nome}</h3>
-            <p style={{ fontSize: '18px', fontWeight: 'bold' }}>
+            <h3 style={{ margin: 0 }}>{produto.nome}</h3>
+            <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '8px 0' }}>
               R$ {produto.preco}
             </p>
 
             <button
               onClick={() => fazerPedido(produto)}
-              disabled={loading}
               style={{
-                padding: '10px 18px',
-                background: loading ? '#777' : '#00c853',
+                padding: '10px 16px',
+                background: '#00c853',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
+                width: '100%',
               }}
             >
-              {loading ? 'Enviando...' : 'Pedir 🛒'}
+              Pedir 🛒
             </button>
           </div>
         ))
@@ -130,7 +143,7 @@ export default function Home() {
       <h1>PraiaFlow 🌊</h1>
       <h2>Cardápio Digital</h2>
 
-      <Suspense fallback={<p>Carregando cardápio...</p>}>
+      <Suspense fallback={<p>Carregando...</p>}>
         <Cardapio />
       </Suspense>
     </main>
