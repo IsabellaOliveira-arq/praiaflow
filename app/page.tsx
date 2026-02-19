@@ -19,14 +19,13 @@ type ItemCarrinho = {
 }
 
 const iconesCategoria: Record<string, string> = {
-  'Cadeiras de Praia': '🏖️',
-  'Guarda-sol': '⛱️',
-  'Bebidas não alcoólicas': '🥤',
-  'Bebidas alcoólicas': '🍹',
-  'Para petiscar': '🍤',
-  'Pratos': '🍽️',
-  'Pratos Principais': '🍽️',
-  'Sobremesas': '🍰',
+  'cadeiras de praia': '🏖️',
+  'guarda sol': '⛱️',
+  'bebidas alcoolicas': '🍹',
+  'bebidas não alcoolicas': '🥤',
+  'para petiscar': '🍤',
+  'pratos': '🍽️',
+  'sobremesas': '🍰',
 }
 
 export default function Page() {
@@ -34,39 +33,46 @@ export default function Page() {
   const barracaId = searchParams.get('barraca')
 
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [categoriaAtiva, setCategoriaAtiva] = useState<string>('Todas')
+  const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todas')
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [nomeCliente, setNomeCliente] = useState('')
   const [localEntrega, setLocalEntrega] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function carregar() {
+    async function carregarProdutos() {
       if (!barracaId) return
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('produtos')
         .select('*')
         .eq('barraca_id', barracaId)
         .eq('ativo', true)
         .order('categoria', { ascending: true })
 
-      if (data) setProdutos(data)
+      if (!error && data) {
+        setProdutos(data)
+      }
+
       setLoading(false)
     }
 
-    carregar()
+    carregarProdutos()
   }, [barracaId])
 
   const categorias = useMemo(() => {
-    const unicas = Array.from(new Set(produtos.map(p => p.categoria)))
-    return ['Todas', ...unicas]
+    const unicas = Array.from(
+      new Set(produtos.map(p => (p.categoria || '').toLowerCase()))
+    )
+    return ['todas', ...unicas]
   }, [produtos])
 
   const produtosFiltrados =
-    categoriaAtiva === 'Todas'
+    categoriaAtiva === 'todas'
       ? produtos
-      : produtos.filter(p => p.categoria === categoriaAtiva)
+      : produtos.filter(
+          p => (p.categoria || '').toLowerCase() === categoriaAtiva
+        )
 
   function alterarQuantidade(produto: Produto, delta: number) {
     setCarrinho(prev => {
@@ -108,8 +114,13 @@ export default function Page() {
   )
 
   async function enviarPedido() {
+    if (!barracaId) {
+      alert('Barraca não identificada.')
+      return
+    }
+
     if (!nomeCliente || !localEntrega) {
-      alert('Preencha seu nome e o local de entrega 🏖️')
+      alert('Preencha seu nome e o local (ex: Guarda-sol 12)')
       return
     }
 
@@ -128,6 +139,7 @@ export default function Page() {
       .single()
 
     if (error || !pedido) {
+      console.error(error)
       alert('Erro ao enviar pedido')
       return
     }
@@ -142,24 +154,22 @@ export default function Page() {
 
     await supabase.from('itens_pedido').insert(itens)
 
-    alert('Pedido enviado com sucesso! 🌊')
+    alert('Pedido enviado com sucesso! 🏖️')
     setCarrinho([])
   }
 
   if (loading) {
     return (
-      <div style={{ padding: 24, color: '#0d47a1' }}>
-        Carregando cardápio da praia...
+      <div style={{ padding: 24 }}>
+        <h2 style={{ color: '#0d47a1' }}>Carregando cardápio...</h2>
       </div>
     )
   }
 
   return (
     <div style={container}>
-      {/* HEADER BONITO */}
       <h1 style={titulo}>PraiaFlow 🌊</h1>
 
-      {/* COMANDA */}
       <input
         style={input}
         placeholder="👤 Seu nome (comanda individual)"
@@ -174,7 +184,6 @@ export default function Page() {
         onChange={(e) => setLocalEntrega(e.target.value)}
       />
 
-      {/* ABAS COM ÍCONES */}
       <div style={abasContainer}>
         {categorias.map(cat => (
           <button
@@ -185,17 +194,16 @@ export default function Page() {
               background:
                 categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
               color:
-                categoriaAtiva === cat ? '#ffffff' : '#0d47a1',
+                categoriaAtiva === cat ? '#fff' : '#0d47a1',
             }}
           >
-            {cat === 'Todas'
+            {cat === 'todas'
               ? '📋 Todas'
               : `${iconesCategoria[cat] || '🍽️'} ${cat}`}
           </button>
         ))}
       </div>
 
-      {/* PRODUTOS BONITOS */}
       {produtosFiltrados.map(produto => {
         const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
@@ -206,7 +214,7 @@ export default function Page() {
             <div style={preco}>R$ {produto.preco}</div>
 
             <textarea
-              placeholder="Observações (ex: sem gelo, fruta: morango, zero...)"
+              placeholder="Observações (ex: sem gelo, pouco açúcar...)"
               onChange={(e) =>
                 atualizarObservacao(produto.id, e.target.value)
               }
@@ -234,7 +242,6 @@ export default function Page() {
         )
       })}
 
-      {/* CARRINHO FIXO LINDO */}
       {carrinho.length > 0 && (
         <div style={carrinhoBox}>
           <div style={{ fontSize: 18, fontWeight: 800 }}>
@@ -250,7 +257,6 @@ export default function Page() {
   )
 }
 
-/* ESTILOS PREMIUM (PRAIA + MOBILE) */
 const container = {
   maxWidth: 520,
   margin: '0 auto',
@@ -274,7 +280,6 @@ const input = {
   marginBottom: 12,
   fontSize: 16,
   background: '#ffffff',
-  color: '#0d1b2a',
 }
 
 const abasContainer = {
@@ -320,8 +325,6 @@ const textarea = {
   borderRadius: 12,
   border: '1px solid #e0e0e0',
   marginBottom: 12,
-  color: '#000',
-  background: '#fff',
 }
 
 const controle = {
@@ -357,8 +360,6 @@ const quantidade = {
   fontSize: 18,
   fontWeight: 900,
   color: '#0d47a1',
-  minWidth: 24,
-  textAlign: 'center' as const,
 }
 
 const carrinhoBox = {
