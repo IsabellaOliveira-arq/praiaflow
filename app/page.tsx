@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { supabase } from '../lib/supabase'
 
 type Produto = {
   id: string
@@ -18,6 +18,17 @@ type ItemCarrinho = {
   observacao: string
 }
 
+const iconesCategoria: Record<string, string> = {
+  'Cadeiras de Praia': '🏖️',
+  'Guarda-sol': '⛱️',
+  'Bebidas não alcoólicas': '🥤',
+  'Bebidas alcoólicas': '🍹',
+  'Para petiscar': '🍤',
+  'Pratos': '🍽️',
+  'Pratos Principais': '🍽️',
+  'Sobremesas': '🍰',
+}
+
 export default function Page() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
@@ -30,7 +41,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function carregarProdutos() {
+    async function carregar() {
       if (!barracaId) return
 
       const { data } = await supabase
@@ -40,17 +51,17 @@ export default function Page() {
         .eq('ativo', true)
         .order('categoria', { ascending: true })
 
-      if (data) {
-        setProdutos(data)
-      }
-
+      if (data) setProdutos(data)
       setLoading(false)
     }
 
-    carregarProdutos()
+    carregar()
   }, [barracaId])
 
-  const categorias = ['Todas', ...new Set(produtos.map(p => p.categoria))]
+  const categorias = useMemo(() => {
+    const unicas = Array.from(new Set(produtos.map(p => p.categoria)))
+    return ['Todas', ...unicas]
+  }, [produtos])
 
   const produtosFiltrados =
     categoriaAtiva === 'Todas'
@@ -71,7 +82,9 @@ export default function Page() {
             ? { ...i, quantidade: novaQtd }
             : i
         )
-      } else if (delta > 0) {
+      }
+
+      if (delta > 0) {
         return [...prev, { produto, quantidade: 1, observacao: '' }]
       }
 
@@ -96,157 +109,124 @@ export default function Page() {
 
   async function enviarPedido() {
     if (!nomeCliente || !localEntrega) {
-      alert('Preencha seu nome e o local (ex: Guarda-sol 12)')
+      alert('Preencha seu nome e o local de entrega 🏖️')
       return
     }
 
-    const { data: pedido } = await supabase
+    const { data: pedido, error } = await supabase
       .from('pedidos')
       .insert([
         {
           barraca_id: barracaId,
           nome_cliente: nomeCliente,
           local_entrega: localEntrega,
-          total: total
-        }
+          total: total,
+          status: 'novo',
+        },
       ])
       .select()
       .single()
 
-    if (!pedido) return
+    if (error || !pedido) {
+      alert('Erro ao enviar pedido')
+      return
+    }
 
     const itens = carrinho.map(item => ({
       pedido_id: pedido.id,
       produto_id: item.produto.id,
       quantidade: item.quantidade,
       preco_unitario: item.produto.preco,
-      observacoes: item.observacao
+      observacoes: item.observacao,
     }))
 
     await supabase.from('itens_pedido').insert(itens)
 
-    alert('Pedido enviado com sucesso! 🏖️')
+    alert('Pedido enviado com sucesso! 🌊')
     setCarrinho([])
   }
 
   if (loading) {
-    return <p style={{ padding: 20 }}>Carregando cardápio...</p>
+    return (
+      <div style={{ padding: 24, color: '#0d47a1' }}>
+        Carregando cardápio da praia...
+      </div>
+    )
   }
 
   return (
-    <div style={{
-      maxWidth: 520,
-      margin: '0 auto',
-      padding: 16,
-      background: '#f2f6ff',
-      minHeight: '100vh'
-    }}>
+    <div style={container}>
       {/* HEADER BONITO */}
-      <h1 style={{
-        color: '#0d47a1',
-        fontSize: 28,
-        fontWeight: 900,
-        marginBottom: 16
-      }}>
-        PraiaFlow 🌊
-      </h1>
+      <h1 style={titulo}>PraiaFlow 🌊</h1>
 
-      {/* COMANDA INDIVIDUAL */}
+      {/* COMANDA */}
       <input
+        style={input}
         placeholder="👤 Seu nome (comanda individual)"
         value={nomeCliente}
         onChange={(e) => setNomeCliente(e.target.value)}
-        style={inputStyle}
       />
 
       <input
+        style={input}
         placeholder="📍 Ex: Guarda-sol 12 / Cadeira Azul"
         value={localEntrega}
         onChange={(e) => setLocalEntrega(e.target.value)}
-        style={{ ...inputStyle, marginTop: 10 }}
       />
 
-      {/* ABAS DE CATEGORIA (COMO ESTAVA ANTES) */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        overflowX: 'auto',
-        margin: '20px 0'
-      }}>
+      {/* ABAS COM ÍCONES */}
+      <div style={abasContainer}>
         {categorias.map(cat => (
           <button
             key={cat}
             onClick={() => setCategoriaAtiva(cat)}
             style={{
-              padding: '10px 16px',
-              borderRadius: 999,
-              border: 'none',
+              ...aba,
               background:
                 categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
               color:
-                categoriaAtiva === cat ? '#fff' : '#0d47a1',
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-              cursor: 'pointer'
+                categoriaAtiva === cat ? '#ffffff' : '#0d47a1',
             }}
           >
-            {cat}
+            {cat === 'Todas'
+              ? '📋 Todas'
+              : `${iconesCategoria[cat] || '🍽️'} ${cat}`}
           </button>
         ))}
       </div>
 
-      {/* CARDS BONITOS */}
+      {/* PRODUTOS BONITOS */}
       {produtosFiltrados.map(produto => {
         const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
 
         return (
-          <div key={produto.id} style={cardStyle}>
-            <h2 style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: '#1a1a1a'
-            }}>
-              {produto.nome}
-            </h2>
-
-            <p style={{
-              fontSize: 22,
-              fontWeight: 'bold',
-              color: '#1565c0',
-              marginBottom: 10
-            }}>
-              R$ {produto.preco}
-            </p>
+          <div key={produto.id} style={card}>
+            <div style={nomeProduto}>{produto.nome}</div>
+            <div style={preco}>R$ {produto.preco}</div>
 
             <textarea
-              placeholder="Observações (ex: sem gelo, pouco açúcar)"
+              placeholder="Observações (ex: sem gelo, fruta: morango, zero...)"
               onChange={(e) =>
                 atualizarObservacao(produto.id, e.target.value)
               }
-              style={textareaStyle}
+              style={textarea}
             />
 
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12
-            }}>
-              <button onClick={() => alterarQuantidade(produto, -1)} style={botaoQtd}>
-                -
+            <div style={controle}>
+              <button
+                style={botaoMenos}
+                onClick={() => alterarQuantidade(produto, -1)}
+              >
+                −
               </button>
 
-              <span style={{
-                fontSize: 18,
-                fontWeight: 800,
-                minWidth: 20,
-                textAlign: 'center',
-                color: '#0d47a1'
-              }}>
-                {qtd}
-              </span>
+              <span style={quantidade}>{qtd}</span>
 
-              <button onClick={() => alterarQuantidade(produto, 1)} style={botaoAdd}>
+              <button
+                style={botaoMais}
+                onClick={() => alterarQuantidade(produto, 1)}
+              >
                 +
               </button>
             </div>
@@ -254,14 +234,14 @@ export default function Page() {
         )
       })}
 
-      {/* CARRINHO FIXO BONITO */}
+      {/* CARRINHO FIXO LINDO */}
       {carrinho.length > 0 && (
-        <div style={carrinhoStyle}>
-          <div style={{ fontWeight: 800, fontSize: 18 }}>
+        <div style={carrinhoBox}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>
             Total: R$ {total.toFixed(2)}
           </div>
 
-          <button onClick={enviarPedido} style={botaoEnviar}>
+          <button style={botaoEnviar} onClick={enviarPedido}>
             Enviar Pedido 🏖️
           </button>
         </div>
@@ -270,56 +250,119 @@ export default function Page() {
   )
 }
 
-const inputStyle = {
+/* ESTILOS PREMIUM (PRAIA + MOBILE) */
+const container = {
+  maxWidth: 520,
+  margin: '0 auto',
+  padding: 16,
+  background: '#f4f8ff',
+  minHeight: '100vh',
+}
+
+const titulo = {
+  fontSize: 30,
+  fontWeight: 900,
+  color: '#0d47a1',
+  marginBottom: 16,
+}
+
+const input = {
   width: '100%',
   padding: 14,
   borderRadius: 14,
-  border: '2px solid #e3f2fd',
+  border: '2px solid #bbdefb',
+  marginBottom: 12,
   fontSize: 16,
-  background: '#ffffff'
+  background: '#ffffff',
+  color: '#0d1b2a',
 }
 
-const cardStyle = {
+const abasContainer = {
+  display: 'flex',
+  gap: 8,
+  overflowX: 'auto' as const,
+  marginBottom: 20,
+}
+
+const aba = {
+  padding: '10px 16px',
+  borderRadius: 999,
+  border: 'none',
+  fontWeight: 700,
+  whiteSpace: 'nowrap' as const,
+  cursor: 'pointer',
+}
+
+const card = {
   background: '#ffffff',
-  borderRadius: 18,
+  borderRadius: 20,
   padding: 18,
   marginBottom: 16,
-  boxShadow: '0 6px 18px rgba(0,0,0,0.08)'
+  boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
 }
 
-const textareaStyle = {
+const nomeProduto = {
+  fontSize: 20,
+  fontWeight: 800,
+  color: '#0d1b2a',
+}
+
+const preco = {
+  fontSize: 22,
+  fontWeight: 900,
+  color: '#1565c0',
+  marginBottom: 10,
+}
+
+const textarea = {
   width: '100%',
   padding: 12,
   borderRadius: 12,
   border: '1px solid #e0e0e0',
-  marginBottom: 12
+  marginBottom: 12,
+  color: '#000',
+  background: '#fff',
 }
 
-const botaoQtd = {
-  width: 42,
-  height: 42,
+const controle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+}
+
+const botaoMenos = {
+  width: 44,
+  height: 44,
   borderRadius: 12,
   border: 'none',
   background: '#e3f2fd',
-  fontSize: 18,
+  fontSize: 20,
   fontWeight: 'bold',
-  cursor: 'pointer'
+  cursor: 'pointer',
 }
 
-const botaoAdd = {
-  width: 42,
-  height: 42,
+const botaoMais = {
+  width: 44,
+  height: 44,
   borderRadius: 12,
   border: 'none',
   background: '#1565c0',
   color: '#fff',
-  fontSize: 18,
+  fontSize: 20,
   fontWeight: 'bold',
-  cursor: 'pointer'
+  cursor: 'pointer',
 }
 
-const carrinhoStyle = {
-  position: 'fixed',
+const quantidade = {
+  fontSize: 18,
+  fontWeight: 900,
+  color: '#0d47a1',
+  minWidth: 24,
+  textAlign: 'center' as const,
+}
+
+const carrinhoBox = {
+  position: 'fixed' as const,
   bottom: 16,
   left: 16,
   right: 16,
@@ -327,7 +370,7 @@ const carrinhoStyle = {
   color: '#fff',
   padding: 18,
   borderRadius: 20,
-  boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+  boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
 }
 
 const botaoEnviar = {
@@ -338,7 +381,7 @@ const botaoEnviar = {
   border: 'none',
   background: '#1565c0',
   color: '#fff',
-  fontSize: 16,
+  fontSize: 18,
   fontWeight: 'bold',
-  cursor: 'pointer'
+  cursor: 'pointer',
 }
