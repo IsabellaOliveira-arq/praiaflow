@@ -10,58 +10,62 @@ type Produto = {
   preco: number
   categoria: string
   ativo: boolean
-  imagem_url?: string
+}
+
+type Opcao = {
+  id: string
+  produto_id: string
+  nome: string
+  ativo: boolean
 }
 
 type ItemCarrinho = {
   produto: Produto
   quantidade: number
+  opcaoSelecionada?: string
+  observacoes?: string
 }
-
-const CATEGORIAS = [
-  { nome: 'Bebidas não alcoólicas', icone: '🥤' },
-  { nome: 'Bebidas alcoólicas', icone: '🍹' },
-  { nome: 'Para petiscar', icone: '🍤' },
-  { nome: 'Pratos', icone: '🍽️' },
-  { nome: 'Sobremesas', icone: '🍨' },
-  { nome: 'Cadeiras de Praia', icone: '🪑' },
-  { nome: 'Guarda-sol', icone: '⛱️' },
-]
 
 function Cardapio() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
 
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [categoriaAtiva, setCategoriaAtiva] = useState('Bebidas não alcoólicas')
+  const [opcoes, setOpcoes] = useState<Opcao[]>([])
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
+  const [nomeCliente, setNomeCliente] = useState('')
   const [localEntrega, setLocalEntrega] = useState('')
-  const [nomeComanda, setNomeComanda] = useState('')
   const [mensagem, setMensagem] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchProdutos() {
+    async function carregarDados() {
       if (!barracaId) return
-      setLoading(true)
 
-      const { data } = await supabase
+      const { data: produtosData } = await supabase
         .from('produtos')
-        .select('id, nome, preco, categoria, ativo, imagem_url')
+        .select('*')
         .eq('barraca_id', barracaId)
         .eq('ativo', true)
         .order('nome', { ascending: true })
 
-      if (data) setProdutos(data)
+      const { data: opcoesData } = await supabase
+        .from('opcoes_produto')
+        .select('*')
+        .eq('ativo', true)
+
+      if (produtosData) setProdutos(produtosData)
+      if (opcoesData) setOpcoes(opcoesData)
+
       setLoading(false)
     }
 
-    fetchProdutos()
+    carregarDados()
   }, [barracaId])
 
-  const produtosFiltrados = produtos.filter(
-    p => p.categoria === categoriaAtiva
-  )
+  function getOpcoesDoProduto(produtoId: string) {
+    return opcoes.filter(op => op.produto_id === produtoId)
+  }
 
   function alterarQuantidade(produto: Produto, delta: number) {
     setCarrinho(prev => {
@@ -85,39 +89,58 @@ function Cardapio() {
     })
   }
 
+  function selecionarOpcao(produtoId: string, opcao: string) {
+    setCarrinho(prev =>
+      prev.map(item =>
+        item.produto.id === produtoId
+          ? { ...item, opcaoSelecionada: opcao }
+          : item
+      )
+    )
+  }
+
+  function atualizarObservacao(produtoId: string, texto: string) {
+    setCarrinho(prev =>
+      prev.map(item =>
+        item.produto.id === produtoId
+          ? { ...item, observacoes: texto }
+          : item
+      )
+    )
+  }
+
   const total = carrinho.reduce(
     (acc, item) => acc + item.produto.preco * item.quantidade,
     0
   )
 
   async function enviarPedido() {
-    if (!barracaId || carrinho.length === 0) return
-
-    if (!localEntrega.trim()) {
-      setMensagem('Informe onde você está (ex: Guarda-Sol 12) 📍')
+    if (!barracaId) {
+      setMensagem('Barraca não identificada.')
       return
     }
 
-    if (!nomeComanda.trim()) {
-      setMensagem('Informe seu nome para a comanda 👤')
+    if (!nomeCliente || !localEntrega) {
+      setMensagem('Preencha seu nome e o local de entrega 📍')
       return
     }
 
-    setMensagem('Enviando seu pedido...')
+    setMensagem('Enviando pedido...')
 
     const { data: pedido, error } = await supabase
       .from('pedidos')
       .insert([{
         barraca_id: barracaId,
-        status: 'novo',
-        total,
-        local: localEntrega,
-        comanda: nomeComanda
+        nome_cliente: nomeCliente,
+        local_entrega: localEntrega,
+        total: total
+        // status NÃO precisa enviar porque já tem default = 'novo'
       }])
       .select()
       .single()
 
     if (error || !pedido) {
+      console.error(error)
       setMensagem('Erro ao enviar pedido 😢')
       return
     }
@@ -127,196 +150,185 @@ function Cardapio() {
       produto_id: item.produto.id,
       quantidade: item.quantidade,
       preco_unitario: item.produto.preco,
+      observacoes: `Opção: ${item.opcaoSelecionada || 'Nenhuma'} | Obs: ${item.observacoes || ''}`
     }))
 
-    await supabase.from('itens_pedido').insert(itens)
+    const { error: itensError } = await supabase
+      .from('itens_pedido')
+      .insert(itens)
+
+    if (itensError) {
+      console.error(itensError)
+      setMensagem('Erro ao salvar itens do pedido')
+      return
+    }
 
     setCarrinho([])
-    setMensagem(`Pedido enviado para ${nomeComanda} em ${localEntrega} 🏖️`)
+    setMensagem(`Pedido enviado com sucesso! 🏖️ Entrega em: ${localEntrega}`)
   }
 
   if (loading) {
-    return <p style={{ color: '#0a2540', fontWeight: 700 }}>Carregando cardápio...</p>
+    return <p style={{ padding: 20 }}>Carregando cardápio...</p>
   }
 
   return (
-    <>
-      {/* LOCAL */}
-      <div style={{
-        background: '#ffffff',
-        padding: 16,
-        borderRadius: 18,
-        marginBottom: 12,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
-      }}>
-        <label style={{ fontWeight: 800, color: '#0a2540' }}>
-          📍 Onde você está?
-        </label>
-        <input
-          type="text"
-          placeholder="Ex: Guarda-Sol 12"
-          value={localEntrega}
-          onChange={(e) => setLocalEntrega(e.target.value)}
-          style={{
-            width: '100%',
-            marginTop: 8,
-            padding: 14,
-            borderRadius: 12,
-            border: '2px solid #e3f2fd',
-            fontSize: 16,
-            color: '#0a2540',
-            fontWeight: 600
-          }}
-        />
-      </div>
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: 16 }}>
+      <h1 style={{ color: '#0d47a1', fontWeight: 900 }}>
+        PraiaFlow 🌊
+      </h1>
 
-      {/* COMANDA INDIVIDUAL */}
-      <div style={{
-        background: '#ffffff',
-        padding: 16,
-        borderRadius: 18,
-        marginBottom: 20,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
-      }}>
-        <label style={{ fontWeight: 800, color: '#0a2540' }}>
-          👤 Seu nome (comanda individual)
-        </label>
-        <input
-          type="text"
-          placeholder="Ex: Ana, João, Casal, Família"
-          value={nomeComanda}
-          onChange={(e) => setNomeComanda(e.target.value)}
-          style={{
-            width: '100%',
-            marginTop: 8,
-            padding: 14,
-            borderRadius: 12,
-            border: '2px solid #e3f2fd',
-            fontSize: 16,
-            color: '#0a2540',
-            fontWeight: 600
-          }}
-        />
-      </div>
+      <input
+        placeholder="👤 Seu nome (comanda individual)"
+        value={nomeCliente}
+        onChange={(e) => setNomeCliente(e.target.value)}
+        style={{
+          width: '100%',
+          padding: 14,
+          marginBottom: 10,
+          borderRadius: 12,
+          border: '2px solid #e3f2fd',
+          fontSize: 16
+        }}
+      />
 
-      {/* CATEGORIAS */}
-      <div style={{ display: 'flex', overflowX: 'auto', gap: 10, marginBottom: 20 }}>
-        {CATEGORIAS.map(cat => (
-          <button
-            key={cat.nome}
-            onClick={() => setCategoriaAtiva(cat.nome)}
-            style={{
-              padding: '10px 16px',
-              borderRadius: 999,
-              border: 'none',
-              fontWeight: 800,
-              whiteSpace: 'nowrap',
-              background: categoriaAtiva === cat.nome ? '#1565c0' : '#e3f2fd',
-              color: categoriaAtiva === cat.nome ? '#fff' : '#0a2540',
-              cursor: 'pointer'
-            }}
-          >
-            {cat.icone} {cat.nome}
-          </button>
-        ))}
-      </div>
+      <input
+        placeholder="📍 Ex: Guarda-sol 12 / Cadeira Azul"
+        value={localEntrega}
+        onChange={(e) => setLocalEntrega(e.target.value)}
+        style={{
+          width: '100%',
+          padding: 14,
+          marginBottom: 20,
+          borderRadius: 12,
+          border: '2px solid #e3f2fd',
+          fontSize: 16
+        }}
+      />
 
-      {mensagem && (
-        <p style={{ fontWeight: 'bold', color: '#1565c0' }}>
-          {mensagem}
-        </p>
-      )}
-
-      {/* PRODUTOS */}
-      {produtosFiltrados.map(produto => {
+      {produtos.map(produto => {
         const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
+        const opcoesProduto = getOpcoesDoProduto(produto.id)
 
         return (
-          <div key={produto.id} style={{
-            background: '#ffffff',
-            padding: 18,
-            borderRadius: 18,
-            marginBottom: 18,
-            boxShadow: '0 10px 28px rgba(0,0,0,0.08)'
-          }}>
-            <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0a2540' }}>
+          <div key={produto.id}
+            style={{
+              background: '#ffffff',
+              padding: 18,
+              borderRadius: 16,
+              marginBottom: 16,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.08)'
+            }}>
+            
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#111' }}>
               {produto.nome}
             </h3>
 
-            <p style={{ fontSize: 24, fontWeight: 'bold', color: '#1565c0' }}>
+            <p style={{
+              fontSize: 22,
+              fontWeight: 'bold',
+              color: '#1565c0'
+            }}>
               R$ {produto.preco}
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => alterarQuantidade(produto, -1)}
-                style={{ padding: '10px 16px', borderRadius: 12, border: 'none', background: '#e2e8f0', fontWeight: 'bold' }}>
-                -
-              </button>
+            {opcoesProduto.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontWeight: 700 }}>Escolha uma opção:</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {opcoesProduto.map(op => (
+                    <button
+                      key={op.id}
+                      onClick={() => selecionarOpcao(produto.id, op.nome)}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 12,
+                        border: '2px solid #1565c0',
+                        background:
+                          item?.opcaoSelecionada === op.nome ? '#1565c0' : '#fff',
+                        color:
+                          item?.opcaoSelecionada === op.nome ? '#fff' : '#1565c0',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {op.nome}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <span style={{ fontSize: 18, fontWeight: 'bold', color: '#0a2540' }}>
-                {qtd}
-              </span>
+            <textarea
+              placeholder="Observações (ex: sem gelo, pouco açúcar...)"
+              onChange={(e) =>
+                atualizarObservacao(produto.id, e.target.value)
+              }
+              style={{
+                width: '100%',
+                padding: 12,
+                borderRadius: 12,
+                marginBottom: 12,
+                border: '1px solid #ddd'
+              }}
+            />
 
-              <button onClick={() => alterarQuantidade(produto, 1)}
-                style={{ padding: '10px 16px', borderRadius: 12, border: 'none', background: '#1565c0', color: '#fff', fontWeight: 'bold' }}>
-                +
-              </button>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button onClick={() => alterarQuantidade(produto, -1)}>-</button>
+              <span style={{ fontSize: 18, fontWeight: 'bold' }}>{qtd}</span>
+              <button onClick={() => alterarQuantidade(produto, 1)}>+</button>
             </div>
           </div>
         )
       })}
 
-      {/* CARRINHO */}
       {carrinho.length > 0 && (
         <div style={{
           position: 'fixed',
           bottom: 16,
           left: 16,
           right: 16,
-          background: '#1565c0',
+          background: '#0d47a1',
           color: '#fff',
           padding: 18,
-          borderRadius: 20,
-          boxShadow: '0 12px 30px rgba(0,0,0,0.25)'
+          borderRadius: 18
         }}>
           <strong style={{ fontSize: 18 }}>
-            {nomeComanda || 'Sua comanda'} • Total: R$ {total.toFixed(2)}
+            Total: R$ {total.toFixed(2)}
           </strong>
 
-          <button onClick={enviarPedido}
+          <button
+            onClick={enviarPedido}
             style={{
               width: '100%',
-              marginTop: 12,
+              marginTop: 10,
               padding: 16,
-              borderRadius: 14,
+              borderRadius: 12,
               border: 'none',
-              fontWeight: 'bold',
-              fontSize: 18,
-              background: '#0a2540',
+              background: '#1565c0',
               color: '#fff',
-              cursor: 'pointer'
-            }}>
-            Enviar pedido 🏖️
+              fontSize: 16,
+              fontWeight: 'bold'
+            }}
+          >
+            Enviar Pedido 🏖️
           </button>
         </div>
       )}
-    </>
+
+      {mensagem && (
+        <p style={{ marginTop: 20, fontWeight: 'bold' }}>
+          {mensagem}
+        </p>
+      )}
+    </div>
   )
 }
 
 export default function Home() {
   return (
-    <main style={{
-      padding: 20,
-      background: '#f1f5f9',
-      minHeight: '100vh',
-      color: '#0a2540'
-    }}>
-      <h1 style={{ fontWeight: 900 }}>PraiaFlow 🌊</h1>
-      <Suspense fallback={<p>Carregando...</p>}>
-        <Cardapio />
-      </Suspense>
-    </main>
+    <Suspense fallback={<p>Carregando cardápio...</p>}>
+      <Cardapio />
+    </Suspense>
   )
 }
