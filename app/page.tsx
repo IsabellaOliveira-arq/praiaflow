@@ -35,11 +35,11 @@ function Cardapio() {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [nomeCliente, setNomeCliente] = useState('')
   const [localEntrega, setLocalEntrega] = useState('')
-  const [mensagem, setMensagem] = useState('')
   const [loading, setLoading] = useState(true)
+  const [mensagem, setMensagem] = useState('')
 
   useEffect(() => {
-    async function carregarDados() {
+    async function carregar() {
       if (!barracaId) return
 
       const { data: produtosData } = await supabase
@@ -47,7 +47,7 @@ function Cardapio() {
         .select('*')
         .eq('barraca_id', barracaId)
         .eq('ativo', true)
-        .order('nome', { ascending: true })
+        .order('categoria', { ascending: true })
 
       const { data: opcoesData } = await supabase
         .from('opcoes_produto')
@@ -60,11 +60,11 @@ function Cardapio() {
       setLoading(false)
     }
 
-    carregarDados()
+    carregar()
   }, [barracaId])
 
-  function getOpcoesDoProduto(produtoId: string) {
-    return opcoes.filter(op => op.produto_id === produtoId)
+  function getOpcoes(produtoId: string) {
+    return opcoes.filter(o => o.produto_id === produtoId)
   }
 
   function alterarQuantidade(produto: Produto, delta: number) {
@@ -115,17 +115,10 @@ function Cardapio() {
   )
 
   async function enviarPedido() {
-    if (!barracaId) {
-      setMensagem('Barraca não identificada.')
-      return
-    }
-
     if (!nomeCliente || !localEntrega) {
       setMensagem('Preencha seu nome e o local de entrega 📍')
       return
     }
-
-    setMensagem('Enviando pedido...')
 
     const { data: pedido, error } = await supabase
       .from('pedidos')
@@ -134,13 +127,11 @@ function Cardapio() {
         nome_cliente: nomeCliente,
         local_entrega: localEntrega,
         total: total
-        // status NÃO precisa enviar porque já tem default = 'novo'
       }])
       .select()
       .single()
 
     if (error || !pedido) {
-      console.error(error)
       setMensagem('Erro ao enviar pedido 😢')
       return
     }
@@ -153,18 +144,10 @@ function Cardapio() {
       observacoes: `Opção: ${item.opcaoSelecionada || 'Nenhuma'} | Obs: ${item.observacoes || ''}`
     }))
 
-    const { error: itensError } = await supabase
-      .from('itens_pedido')
-      .insert(itens)
-
-    if (itensError) {
-      console.error(itensError)
-      setMensagem('Erro ao salvar itens do pedido')
-      return
-    }
+    await supabase.from('itens_pedido').insert(itens)
 
     setCarrinho([])
-    setMensagem(`Pedido enviado com sucesso! 🏖️ Entrega em: ${localEntrega}`)
+    setMensagem('Pedido enviado com sucesso! 🏖️')
   }
 
   if (loading) {
@@ -172,69 +155,95 @@ function Cardapio() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 16 }}>
-      <h1 style={{ color: '#0d47a1', fontWeight: 900 }}>
+    <div style={{
+      maxWidth: 520,
+      margin: '0 auto',
+      padding: 16,
+      background: '#f5f7fb',
+      minHeight: '100vh'
+    }}>
+      
+      {/* HEADER BONITO */}
+      <h1 style={{
+        color: '#0d47a1',
+        fontWeight: 900,
+        fontSize: 28,
+        marginBottom: 16
+      }}>
         PraiaFlow 🌊
       </h1>
 
+      {/* COMANDA */}
       <input
         placeholder="👤 Seu nome (comanda individual)"
         value={nomeCliente}
         onChange={(e) => setNomeCliente(e.target.value)}
         style={{
           width: '100%',
-          padding: 14,
-          marginBottom: 10,
-          borderRadius: 12,
+          padding: 16,
+          borderRadius: 16,
           border: '2px solid #e3f2fd',
-          fontSize: 16
+          marginBottom: 10,
+          fontSize: 16,
+          background: '#fff'
         }}
       />
 
+      {/* LOCAL */}
       <input
         placeholder="📍 Ex: Guarda-sol 12 / Cadeira Azul"
         value={localEntrega}
         onChange={(e) => setLocalEntrega(e.target.value)}
         style={{
           width: '100%',
-          padding: 14,
-          marginBottom: 20,
-          borderRadius: 12,
+          padding: 16,
+          borderRadius: 16,
           border: '2px solid #e3f2fd',
-          fontSize: 16
+          marginBottom: 20,
+          fontSize: 16,
+          background: '#fff'
         }}
       />
 
+      {/* PRODUTOS EM CARDS BONITOS */}
       {produtos.map(produto => {
         const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
-        const opcoesProduto = getOpcoesDoProduto(produto.id)
+        const opcoesProduto = getOpcoes(produto.id)
 
         return (
-          <div key={produto.id}
-            style={{
-              background: '#ffffff',
-              padding: 18,
-              borderRadius: 16,
-              marginBottom: 16,
-              boxShadow: '0 6px 20px rgba(0,0,0,0.08)'
-            }}>
+          <div key={produto.id} style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            padding: 18,
+            marginBottom: 16,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+          }}>
             
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#111' }}>
+            <h2 style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: '#1a1a1a',
+              marginBottom: 4
+            }}>
               {produto.nome}
-            </h3>
+            </h2>
 
             <p style={{
               fontSize: 22,
               fontWeight: 'bold',
-              color: '#1565c0'
+              color: '#1565c0',
+              marginBottom: 12
             }}>
               R$ {produto.preco}
             </p>
 
+            {/* OPÇÕES EM BOTÕES BONITOS */}
             {opcoesProduto.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                <p style={{ fontWeight: 700 }}>Escolha uma opção:</p>
+                <p style={{ fontWeight: 700, marginBottom: 6 }}>
+                  Escolha uma opção:
+                </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {opcoesProduto.map(op => (
                     <button
@@ -259,6 +268,7 @@ function Cardapio() {
               </div>
             )}
 
+            {/* OBSERVAÇÕES */}
             <textarea
               placeholder="Observações (ex: sem gelo, pouco açúcar...)"
               onChange={(e) =>
@@ -266,22 +276,61 @@ function Cardapio() {
               }
               style={{
                 width: '100%',
-                padding: 12,
+                padding: 14,
                 borderRadius: 12,
-                marginBottom: 12,
-                border: '1px solid #ddd'
+                border: '1px solid #e0e0e0',
+                marginBottom: 14,
+                fontSize: 14
               }}
             />
 
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button onClick={() => alterarQuantidade(produto, -1)}>-</button>
-              <span style={{ fontSize: 18, fontWeight: 'bold' }}>{qtd}</span>
-              <button onClick={() => alterarQuantidade(produto, 1)}>+</button>
+            {/* CONTADOR BONITO */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={() => alterarQuantidade(produto, -1)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: '#e3f2fd',
+                  fontSize: 20,
+                  fontWeight: 'bold'
+                }}
+              >
+                -
+              </button>
+
+              <span style={{
+                fontSize: 18,
+                fontWeight: 800,
+                minWidth: 20,
+                textAlign: 'center'
+              }}>
+                {qtd}
+              </span>
+
+              <button
+                onClick={() => alterarQuantidade(produto, 1)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: '#1565c0',
+                  color: '#fff',
+                  fontSize: 20,
+                  fontWeight: 'bold'
+                }}
+              >
+                +
+              </button>
             </div>
           </div>
         )
       })}
 
+      {/* CARRINHO FIXO PREMIUM */}
       {carrinho.length > 0 && (
         <div style={{
           position: 'fixed',
@@ -291,11 +340,12 @@ function Cardapio() {
           background: '#0d47a1',
           color: '#fff',
           padding: 18,
-          borderRadius: 18
+          borderRadius: 20,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
         }}>
-          <strong style={{ fontSize: 18 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>
             Total: R$ {total.toFixed(2)}
-          </strong>
+          </div>
 
           <button
             onClick={enviarPedido}
@@ -303,7 +353,7 @@ function Cardapio() {
               width: '100%',
               marginTop: 10,
               padding: 16,
-              borderRadius: 12,
+              borderRadius: 14,
               border: 'none',
               background: '#1565c0',
               color: '#fff',
@@ -317,7 +367,11 @@ function Cardapio() {
       )}
 
       {mensagem && (
-        <p style={{ marginTop: 20, fontWeight: 'bold' }}>
+        <p style={{
+          marginTop: 20,
+          fontWeight: 'bold',
+          textAlign: 'center'
+        }}>
           {mensagem}
         </p>
       )}
@@ -327,7 +381,7 @@ function Cardapio() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<p>Carregando cardápio...</p>}>
+    <Suspense fallback={<p>Carregando...</p>}>
       <Cardapio />
     </Suspense>
   )
