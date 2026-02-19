@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useSearchParams } from 'next/navigation'
 
@@ -11,7 +11,7 @@ type Produto = {
   barraca_id: string
 }
 
-export default function Home() {
+function Cardapio() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
 
@@ -66,19 +66,11 @@ export default function Home() {
   }
 
   if (!barracaId) {
-    return (
-      <main style={{ padding: '20px' }}>
-        <h1>PraiaFlow 🌊</h1>
-        <p>QR Code da barraca não encontrado.</p>
-      </main>
-    )
+    return <p>QR Code da barraca não encontrado.</p>
   }
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'Arial' }}>
-      <h1>PraiaFlow 🌊</h1>
-      <h2>Cardápio Digital</h2>
-
+    <>
       {mensagem && (
         <p
           style={{
@@ -128,6 +120,19 @@ export default function Home() {
           </div>
         ))
       )}
+    </>
+  )
+}
+
+export default function Home() {
+  return (
+    <main style={{ padding: '20px', fontFamily: 'Arial' }}>
+      <h1>PraiaFlow 🌊</h1>
+      <h2>Cardápio Digital</h2>
+
+      <Suspense fallback={<p>Carregando cardápio...</p>}>
+        <Cardapio />
+      </Suspense>
     </main>
   )
 }
