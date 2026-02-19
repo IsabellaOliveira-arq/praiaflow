@@ -153,8 +153,8 @@ export default function CardapioCliente() {
       .insert([
         {
           barraca_id: barracaId,
-          nome_cliente: nomeCliente,
-          local_entrega: localEntrega,
+          comanda: nomeCliente, // 🔥 AGORA SALVA O NOME
+          local: localEntrega,  // 🔥 AGORA SALVA GUARDA-SOL
           total: total,
           status: 'novo',
         },
@@ -234,11 +234,12 @@ export default function CardapioCliente() {
             </div>
 
             <textarea
-              placeholder="Observações (ex: sem gelo, zero açúcar, limão...)"
-              onChange={(e) =>
-                atualizarObservacao(produto.id, e.target.value)
-              }
-              style={textarea}
+  placeholder="Observações (ex: sem gelo, água com gás, limão, ketchup...)"
+  value={item?.observacao || ''}
+  onChange={(e) =>
+    atualizarObservacao(produto.id, e.target.value)
+  }
+  style={textarea}
             />
 
             <div style={controle}>
