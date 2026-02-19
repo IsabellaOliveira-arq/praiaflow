@@ -12,11 +12,23 @@ type Produto = {
   ativo: boolean
 }
 
+// 🎯 CATEGORIAS FIXAS (modelo profissional de praia)
+const CATEGORIAS_FIXAS = [
+  'Cadeiras de Praia',
+  'Guarda-sol',
+  'Bebidas não alcoólicas',
+  'Bebidas alcoólicas',
+  'Para petiscar',
+  'Pratos',
+  'Sobremesas',
+]
+
 function Cardapio() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
 
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [categoriaAtiva, setCategoriaAtiva] = useState<string>('Cadeiras de Praia')
   const [loading, setLoading] = useState(true)
   const [mensagem, setMensagem] = useState('')
 
@@ -30,8 +42,7 @@ function Cardapio() {
         .from('produtos')
         .select('id, nome, preco, categoria, ativo')
         .eq('barraca_id', barracaId)
-        .eq('ativo', true) // só produtos ativos
-        .order('categoria', { ascending: true })
+        .eq('ativo', true)
 
       if (!error && data) {
         setProdutos(data)
@@ -42,6 +53,10 @@ function Cardapio() {
 
     fetchProdutos()
   }, [barracaId])
+
+  const produtosFiltrados = produtos.filter(
+    (produto) => produto.categoria === categoriaAtiva
+  )
 
   async function fazerPedido(produto: Produto) {
     if (!barracaId) return
@@ -68,15 +83,51 @@ function Cardapio() {
   }
 
   if (loading) {
-    return (
-      <p style={{ color: '#0a2540', fontWeight: '500' }}>
-        Carregando cardápio...
-      </p>
-    )
+    return <p style={{ color: '#0a2540' }}>Carregando cardápio...</p>
   }
 
   return (
     <>
+      {/* 🔵 ABAS FIXAS POR CATEGORIA (ESTILO APP PROFISSIONAL) */}
+      <div
+        style={{
+          display: 'flex',
+          overflowX: 'auto',
+          gap: '10px',
+          marginBottom: '20px',
+          padding: '12px 0',
+          position: 'sticky',
+          top: 0,
+          background: '#f5f7fb',
+          zIndex: 10,
+        }}
+      >
+        {CATEGORIAS_FIXAS.map((categoria) => (
+          <button
+            key={categoria}
+            onClick={() => setCategoriaAtiva(categoria)}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '999px',
+              border: 'none',
+              whiteSpace: 'nowrap',
+              fontWeight: '600',
+              cursor: 'pointer',
+              background:
+                categoriaAtiva === categoria ? '#1e88e5' : '#e3f2fd',
+              color: categoriaAtiva === categoria ? '#fff' : '#0a2540',
+              boxShadow:
+                categoriaAtiva === categoria
+                  ? '0 4px 12px rgba(30,136,229,0.4)'
+                  : 'none',
+              transition: '0.2s',
+            }}
+          >
+            {categoria}
+          </button>
+        ))}
+      </div>
+
       {mensagem && (
         <div
           style={{
@@ -92,12 +143,12 @@ function Cardapio() {
         </div>
       )}
 
-      {produtos.length === 0 ? (
+      {produtosFiltrados.length === 0 ? (
         <p style={{ color: '#333' }}>
-          Nenhum produto encontrado para esta barraca...
+          Nenhum item nesta categoria...
         </p>
       ) : (
-        produtos.map((produto) => (
+        produtosFiltrados.map((produto) => (
           <div
             key={produto.id}
             style={{
@@ -110,7 +161,6 @@ function Cardapio() {
               boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
             }}
           >
-            {/* Nome do Produto */}
             <h3
               style={{
                 color: '#1a1a1a',
@@ -122,18 +172,6 @@ function Cardapio() {
               {produto.nome}
             </h3>
 
-            {/* Categoria */}
-            <p
-              style={{
-                color: '#6b7280',
-                fontSize: '14px',
-                marginBottom: '10px',
-              }}
-            >
-              {produto.categoria}
-            </p>
-
-            {/* Preço */}
             <p
               style={{
                 fontWeight: 'bold',
@@ -145,12 +183,11 @@ function Cardapio() {
               R$ {produto.preco}
             </p>
 
-            {/* Botão Azul (igual QR) */}
             <button
               onClick={() => fazerPedido(produto)}
               style={{
                 padding: '16px',
-                background: '#1e88e5', // azul principal
+                background: '#1e88e5',
                 color: 'white',
                 border: 'none',
                 borderRadius: '14px',
@@ -158,8 +195,6 @@ function Cardapio() {
                 fontWeight: 'bold',
                 fontSize: '17px',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(30,136,229,0.4)',
-                transition: 'all 0.2s ease',
               }}
             >
               Pedir 🏖️
@@ -181,24 +216,11 @@ export default function Home() {
         minHeight: '100vh',
       }}
     >
-      <h1
-        style={{
-          color: '#0a2540',
-          fontSize: '28px',
-          fontWeight: '700',
-          marginBottom: '4px',
-        }}
-      >
+      <h1 style={{ color: '#0a2540', fontSize: '28px', fontWeight: '700' }}>
         PraiaFlow 🌊
       </h1>
 
-      <h2
-        style={{
-          color: '#1e88e5',
-          fontSize: '18px',
-          marginBottom: '20px',
-        }}
-      >
+      <h2 style={{ color: '#1e88e5', marginBottom: '20px' }}>
         Cardápio Digital
       </h2>
 
