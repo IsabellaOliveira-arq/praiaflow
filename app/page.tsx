@@ -33,8 +33,9 @@ function Cardapio() {
   const barracaId = searchParams.get('barraca')
 
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [categoriaAtiva, setCategoriaAtiva] = useState('Cadeiras de Praia')
+  const [categoriaAtiva, setCategoriaAtiva] = useState('Bebidas não alcoólicas')
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
+  const [localEntrega, setLocalEntrega] = useState('')
   const [loading, setLoading] = useState(true)
   const [mensagem, setMensagem] = useState('')
 
@@ -93,11 +94,21 @@ function Cardapio() {
   async function enviarPedido() {
     if (!barracaId || carrinho.length === 0) return
 
+    if (!localEntrega.trim()) {
+      setMensagem('Informe onde você está (ex: Guarda-Sol 12) 📍')
+      return
+    }
+
     setMensagem('Enviando pedido...')
 
     const { data: pedido, error } = await supabase
       .from('pedidos')
-      .insert([{ barraca_id: barracaId, status: 'novo', total }])
+      .insert([{
+        barraca_id: barracaId,
+        status: 'novo',
+        total,
+        local: localEntrega
+      }])
       .select()
       .single()
 
@@ -116,7 +127,7 @@ function Cardapio() {
     await supabase.from('itens_pedido').insert(itens)
 
     setCarrinho([])
-    setMensagem('Pedido enviado com sucesso! 🏖️')
+    setMensagem('Pedido enviado! Garçom irá até: ' + localEntrega + ' 🏖️')
   }
 
   if (loading) {
@@ -125,7 +136,43 @@ function Cardapio() {
 
   return (
     <>
-      {/* CAPA DA CATEGORIA */}
+      {/* CAMPO DE LOCALIZAÇÃO */}
+      <div style={{
+        marginBottom: 16,
+        background: '#ffffff',
+        padding: 16,
+        borderRadius: 18,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+      }}>
+        <label style={{
+          fontWeight: 800,
+          color: '#0a2540',
+          display: 'block',
+          marginBottom: 8,
+          fontSize: 16
+        }}>
+          📍 Onde você está na praia?
+        </label>
+
+        <input
+          type="text"
+          placeholder="Ex: Guarda-Sol 12, Cadeira Azul ou Tenda 3"
+          value={localEntrega}
+          onChange={(e) => setLocalEntrega(e.target.value)}
+          style={{
+            width: '100%',
+            padding: 14,
+            borderRadius: 12,
+            border: '2px solid #e3f2fd',
+            fontSize: 16,
+            color: '#0a2540',
+            fontWeight: 600,
+            outline: 'none'
+          }}
+        />
+      </div>
+
+      {/* CAPA */}
       {categoriaAtual && (
         <img
           src={categoriaAtual.capa}
@@ -139,7 +186,7 @@ function Cardapio() {
         />
       )}
 
-      {/* ABAS DE CATEGORIA */}
+      {/* ABAS */}
       <div style={{
         display: 'flex',
         overflowX: 'auto',
@@ -159,7 +206,7 @@ function Cardapio() {
               padding: '10px 16px',
               borderRadius: 999,
               border: 'none',
-              fontWeight: 700,
+              fontWeight: 800,
               whiteSpace: 'nowrap',
               background: categoriaAtiva === cat.nome ? '#1565c0' : '#e3f2fd',
               color: categoriaAtiva === cat.nome ? '#ffffff' : '#0a2540',
@@ -177,7 +224,7 @@ function Cardapio() {
         </p>
       )}
 
-      {/* LISTA DE PRODUTOS */}
+      {/* PRODUTOS */}
       {produtosFiltrados.map(produto => {
         const itemCarrinho = carrinho.find(i => i.produto.id === produto.id)
         const quantidade = itemCarrinho?.quantidade || 0
@@ -191,32 +238,27 @@ function Cardapio() {
               marginBottom: 18,
               background: '#ffffff',
               boxShadow: '0 10px 28px rgba(0,0,0,0.08)',
-              padding: 16
+              padding: 18
             }}
           >
-            <h3
-              style={{
-                fontSize: 20,
-                color: '#0a2540',
-                fontWeight: 800,
-                marginBottom: 6
-              }}
-            >
+            <h3 style={{
+              fontSize: 20,
+              color: '#0a2540',
+              fontWeight: 900,
+              marginBottom: 6
+            }}>
               {produto.nome}
             </h3>
 
-            <p
-              style={{
-                fontWeight: 'bold',
-                fontSize: 24,
-                color: '#1565c0',
-                marginBottom: 12
-              }}
-            >
+            <p style={{
+              fontWeight: 'bold',
+              fontSize: 24,
+              color: '#1565c0',
+              marginBottom: 12
+            }}>
               R$ {produto.preco}
             </p>
 
-            {/* CONTADOR */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
                 onClick={() => alterarQuantidade(produto, -1)}
@@ -234,15 +276,13 @@ function Cardapio() {
                 -
               </button>
 
-              <span
-                style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: '#0a2540',
-                  minWidth: 20,
-                  textAlign: 'center'
-                }}
-              >
+              <span style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#0a2540',
+                minWidth: 20,
+                textAlign: 'center'
+              }}>
                 {quantidade}
               </span>
 
@@ -268,19 +308,17 @@ function Cardapio() {
 
       {/* CARRINHO FIXO */}
       {carrinho.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 16,
-            left: 16,
-            right: 16,
-            background: '#1565c0',
-            color: '#ffffff',
-            padding: 18,
-            borderRadius: 18,
-            boxShadow: '0 12px 30px rgba(0,0,0,0.25)'
-          }}
-        >
+        <div style={{
+          position: 'fixed',
+          bottom: 16,
+          left: 16,
+          right: 16,
+          background: '#1565c0',
+          color: '#ffffff',
+          padding: 18,
+          borderRadius: 20,
+          boxShadow: '0 12px 30px rgba(0,0,0,0.25)'
+        }}>
           <strong style={{ fontSize: 18 }}>
             Total: R$ {total.toFixed(2)}
           </strong>
@@ -300,7 +338,7 @@ function Cardapio() {
               cursor: 'pointer'
             }}
           >
-            Enviar pedido 🛒
+            Enviar pedido 🏖️
           </button>
         </div>
       )}
@@ -310,14 +348,12 @@ function Cardapio() {
 
 export default function Home() {
   return (
-    <main
-      style={{
-        padding: 20,
-        background: '#f1f5f9',
-        minHeight: '100vh',
-        color: '#0a2540'
-      }}
-    >
+    <main style={{
+      padding: 20,
+      background: '#f1f5f9',
+      minHeight: '100vh',
+      color: '#0a2540'
+    }}>
       <h1 style={{ color: '#0a2540', fontWeight: 900 }}>
         PraiaFlow 🌊
       </h1>
