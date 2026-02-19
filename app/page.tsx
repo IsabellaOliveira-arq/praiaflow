@@ -10,9 +10,10 @@ type Produto = {
   preco: number
   categoria: string
   ativo: boolean
+  imagem_url?: string
 }
 
-// 🎨 Categorias com ícone + imagem de capa
+// 🏖️ Categorias com ícone + capa (modelo profissional praia)
 const CATEGORIAS = [
   {
     nome: 'Cadeiras de Praia',
@@ -72,7 +73,7 @@ function Cardapio() {
 
       const { data, error } = await supabase
         .from('produtos')
-        .select('id, nome, preco, categoria, ativo')
+        .select('id, nome, preco, categoria, ativo, imagem_url')
         .eq('barraca_id', barracaId)
         .eq('ativo', true)
 
@@ -115,20 +116,25 @@ function Cardapio() {
   }
 
   if (loading) {
-    return <p style={{ color: '#0a2540' }}>Carregando cardápio...</p>
+    return (
+      <p style={{ color: '#0a2540', fontWeight: '500' }}>
+        Carregando cardápio...
+      </p>
+    )
   }
 
   return (
     <>
-      {/* 🖼️ IMAGEM DE CAPA DA CATEGORIA */}
+      {/* 🖼️ CAPA DA CATEGORIA */}
       {categoriaAtual && (
         <div
           style={{
             width: '100%',
-            height: '140px',
-            borderRadius: '16px',
+            height: '150px',
+            borderRadius: '18px',
             overflow: 'hidden',
             marginBottom: '16px',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.1)',
           }}
         >
           <img
@@ -143,7 +149,7 @@ function Cardapio() {
         </div>
       )}
 
-      {/* 🔵 ABAS COM ÍCONES */}
+      {/* 🔵 ABAS COM ÍCONES (FIXAS NO TOPO) */}
       <div
         style={{
           display: 'flex',
@@ -188,6 +194,7 @@ function Cardapio() {
         ))}
       </div>
 
+      {/* 📢 Mensagem de pedido */}
       {mensagem && (
         <div
           style={{
@@ -203,6 +210,7 @@ function Cardapio() {
         </div>
       )}
 
+      {/* 🛒 LISTA DE PRODUTOS COM IMAGEM */}
       {produtosFiltrados.length === 0 ? (
         <p style={{ color: '#333' }}>
           Nenhum item nesta categoria...
@@ -213,53 +221,68 @@ function Cardapio() {
             key={produto.id}
             style={{
               border: '1px solid #e6e6e6',
-              padding: '18px',
               marginBottom: '18px',
               borderRadius: '18px',
               background: '#ffffff',
               maxWidth: '420px',
+              overflow: 'hidden',
               boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
             }}
           >
-            <h3
-              style={{
-                color: '#1a1a1a',
-                fontSize: '20px',
-                fontWeight: '600',
-                marginBottom: '6px',
-              }}
-            >
-              {produto.nome}
-            </h3>
+            {/* 📸 IMAGEM DO PRODUTO */}
+            {produto.imagem_url && (
+              <img
+                src={produto.imagem_url}
+                alt={produto.nome}
+                style={{
+                  width: '100%',
+                  height: '180px',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
 
-            <p
-              style={{
-                fontWeight: 'bold',
-                fontSize: '22px',
-                color: '#0a2540',
-                marginBottom: '16px',
-              }}
-            >
-              R$ {produto.preco}
-            </p>
+            <div style={{ padding: '18px' }}>
+              <h3
+                style={{
+                  color: '#1a1a1a',
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                }}
+              >
+                {produto.nome}
+              </h3>
 
-            <button
-              onClick={() => fazerPedido(produto)}
-              style={{
-                padding: '16px',
-                background: '#1e88e5',
-                color: 'white',
-                border: 'none',
-                borderRadius: '14px',
-                width: '100%',
-                fontWeight: 'bold',
-                fontSize: '17px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(30,136,229,0.35)',
-              }}
-            >
-              Pedir 🏖️
-            </button>
+              <p
+                style={{
+                  fontWeight: 'bold',
+                  fontSize: '22px',
+                  color: '#0a2540',
+                  marginBottom: '16px',
+                }}
+              >
+                R$ {produto.preco}
+              </p>
+
+              <button
+                onClick={() => fazerPedido(produto)}
+                style={{
+                  padding: '16px',
+                  background: '#1e88e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  width: '100%',
+                  fontWeight: 'bold',
+                  fontSize: '17px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(30,136,229,0.35)',
+                }}
+              >
+                Pedir 🏖️
+              </button>
+            </div>
           </div>
         ))
       )}
