@@ -28,19 +28,12 @@ type ItemCarrinho = {
 
 const iconesCategoria: Record<string, string> = {
   'cadeiras de praia': '🏖️',
-  'Cadeiras de praia': '🏖️',
-  'guarda sol': '⛱️',
-  'Guarda sol': '⛱️',
-  'bebidas alcoolicas': '🍹',
-  'Bebidas alcoólicas': '🍹',
-  'bebidas não alcoolicas': '🥤',
-  'Bebidas não alcoólicas': '🥤',
+  'guarda-sol': '⛱️',
+  'bebidas alcoólicas': '🍹',
+  'bebidas não alcoólicas': '🥤',
   'para petiscar': '🍤',
-  'Para petiscar': '🍤',
   'pratos': '🍽️',
-  'Pratos': '🍽️',
   'sobremesas': '🍰',
-  'Sobremesas': '🍰',
 }
 
 export default function CardapioCliente() {
@@ -63,7 +56,6 @@ export default function CardapioCliente() {
         .select('*')
         .eq('barraca_id', barracaId)
         .eq('ativo', true)
-        .order('categoria', { ascending: true })
 
       if (!error && data) {
         setProdutos(data)
@@ -75,11 +67,28 @@ export default function CardapioCliente() {
     carregarProdutos()
   }, [barracaId])
 
+  // 🔥 ORDEM FIXA DAS CATEGORIAS (PRIORIDADE TOTAL)
   const categorias = useMemo(() => {
-    const unicas = Array.from(
+    const categoriasBanco = Array.from(
       new Set(produtos.map(p => (p.categoria || '').toLowerCase()))
     )
-    return ['todas', ...unicas]
+
+    const ordemFixa = [
+      'todas',
+      'guarda-sol',
+      'cadeiras de praia',
+      'bebidas não alcoólicas',
+      'bebidas alcoólicas',
+      'para petiscar',
+      'pratos',
+      'sobremesas',
+    ]
+
+    const ordenadas = ordemFixa.filter(cat =>
+      cat === 'todas' || categoriasBanco.includes(cat)
+    )
+
+    return ordenadas
   }, [produtos])
 
   const produtosFiltrados =
@@ -207,7 +216,7 @@ export default function CardapioCliente() {
           >
             {cat === 'todas'
               ? '📋 Todas'
-              : `${iconesCategoria[cat] || '🍽️'} ${cat}`}
+              : `${iconesCategoria[cat] || '🍽️'} ${formatarCategoria(cat)}`}
           </button>
         ))}
       </div>
@@ -218,8 +227,11 @@ export default function CardapioCliente() {
 
         return (
           <div key={produto.id} style={card}>
-            <div style={nomeProduto}>{produto.nome}</div>
-            <div style={preco}>R$ {produto.preco}</div>
+            {/* 🔥 NOME + PREÇO NA MESMA LINHA */}
+            <div style={linhaTopo}>
+              <div style={nomeProduto}>{produto.nome}</div>
+              <div style={preco}>R$ {produto.preco}</div>
+            </div>
 
             <textarea
               placeholder="Observações (ex: sem gelo, zero açúcar, limão...)"
@@ -265,7 +277,7 @@ export default function CardapioCliente() {
   )
 }
 
-/* ESTILO CORRIGIDO (TEXTO ESCURO E LEGÍVEL) */
+/* ESTILOS */
 const container = {
   maxWidth: 520,
   margin: '0 auto',
@@ -289,7 +301,7 @@ const input = {
   marginBottom: 12,
   fontSize: 16,
   background: '#ffffff',
-  color: '#0d1b2a', // 🔥 TEXTO ESCURO (CORRIGIDO)
+  color: '#0d1b2a',
 }
 
 const abasContainer = {
@@ -316,17 +328,26 @@ const card = {
   boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
 }
 
+const linhaTopo = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  marginBottom: 8,
+}
+
 const nomeProduto = {
   fontSize: 20,
   fontWeight: 800,
-  color: '#0d1b2a', // 🔥 ESCURO
+  color: '#0d1b2a',
+  flex: 1,
 }
 
 const preco = {
   fontSize: 22,
   fontWeight: 900,
   color: '#1565c0',
-  marginBottom: 10,
+  whiteSpace: 'nowrap' as const,
 }
 
 const textarea = {
@@ -336,7 +357,7 @@ const textarea = {
   border: '1px solid #cbd5e1',
   marginBottom: 12,
   background: '#ffffff',
-  color: '#0d1b2a', // 🔥 TEXTO ESCURO (FIX PRINCIPAL)
+  color: '#0d1b2a',
 }
 
 const controle = {
