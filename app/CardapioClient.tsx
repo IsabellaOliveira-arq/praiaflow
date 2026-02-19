@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
+function formatarCategoria(texto: string) {
+  if (!texto) return 'Outros'
+
+  return texto
+    .toLowerCase()
+    .replace(/^\w/, (c) => c.toUpperCase())
+}
+
 type Produto = {
   id: string
   nome: string
