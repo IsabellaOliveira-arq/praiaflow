@@ -19,16 +19,16 @@ type ItemCarrinho = {
 }
 
 const iconesCategoria: Record<string, string> = {
-  'cadeiras de praia': '🏖️',
-  'guarda sol': '⛱️',
-  'bebidas alcoolicas': '🍹',
-  'bebidas não alcoolicas': '🥤',
-  'para petiscar': '🍤',
-  'pratos': '🍽️',
-  'sobremesas': '🍰',
+  'Cadeiras de praia': '🏖️',
+  'Guarda sol': '⛱️',
+  'Bebidas alcoolicas': '🍹',
+  'Bebidas não alcoolicas': '🥤',
+  'Para petiscar': '🍤',
+  'Pratos': '🍽️',
+  'Sobremesas': '🍰',
 }
 
-export default function Page() {
+export default function CardapioCliente() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
 
@@ -139,7 +139,6 @@ export default function Page() {
       .single()
 
     if (error || !pedido) {
-      console.error(error)
       alert('Erro ao enviar pedido')
       return
     }
@@ -154,16 +153,12 @@ export default function Page() {
 
     await supabase.from('itens_pedido').insert(itens)
 
-    alert('Pedido enviado com sucesso! 🏖️')
+    alert('Pedido enviado com sucesso! 🌊')
     setCarrinho([])
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2 style={{ color: '#0d47a1' }}>Carregando cardápio...</h2>
-      </div>
-    )
+    return <h2 style={{ padding: 24, color: '#0d47a1' }}>Carregando cardápio...</h2>
   }
 
   return (
@@ -191,10 +186,8 @@ export default function Page() {
             onClick={() => setCategoriaAtiva(cat)}
             style={{
               ...aba,
-              background:
-                categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
-              color:
-                categoriaAtiva === cat ? '#fff' : '#0d47a1',
+              background: categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
+              color: categoriaAtiva === cat ? '#fff' : '#0d47a1',
             }}
           >
             {cat === 'todas'
@@ -214,7 +207,7 @@ export default function Page() {
             <div style={preco}>R$ {produto.preco}</div>
 
             <textarea
-              placeholder="Observações (ex: sem gelo, pouco açúcar...)"
+              placeholder="Observações (ex: sem gelo, zero açúcar, limão...)"
               onChange={(e) =>
                 atualizarObservacao(produto.id, e.target.value)
               }
@@ -257,6 +250,7 @@ export default function Page() {
   )
 }
 
+/* ESTILO CORRIGIDO (TEXTO ESCURO E LEGÍVEL) */
 const container = {
   maxWidth: 520,
   margin: '0 auto',
@@ -280,6 +274,7 @@ const input = {
   marginBottom: 12,
   fontSize: 16,
   background: '#ffffff',
+  color: '#0d1b2a', // 🔥 TEXTO ESCURO (CORRIGIDO)
 }
 
 const abasContainer = {
@@ -309,7 +304,7 @@ const card = {
 const nomeProduto = {
   fontSize: 20,
   fontWeight: 800,
-  color: '#0d1b2a',
+  color: '#0d1b2a', // 🔥 ESCURO
 }
 
 const preco = {
@@ -323,8 +318,10 @@ const textarea = {
   width: '100%',
   padding: 12,
   borderRadius: 12,
-  border: '1px solid #e0e0e0',
+  border: '1px solid #cbd5e1',
   marginBottom: 12,
+  background: '#ffffff',
+  color: '#0d1b2a', // 🔥 TEXTO ESCURO (FIX PRINCIPAL)
 }
 
 const controle = {
