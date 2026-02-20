@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
@@ -60,25 +61,34 @@ export default function CardapioCliente() {
 
   useEffect(() => {
     async function carregarProdutos() {
-      if (!barracaId) return
+      try {
+        if (!barracaId) {
+          setLoading(false)
+          return
+        }
 
-      const { data, error } = await supabase
-        .from('produtos')
-        .select('*')
-        .eq('barraca_id', barracaId)
-        .eq('ativo', true)
+        const { data, error } = await supabase
+          .from('produtos')
+          .select('*')
+          .eq('barraca_id', barracaId)
+          .eq('ativo', true)
 
-      if (!error && data) {
-        setProdutos(data)
+        if (error) {
+          console.error('Erro ao carregar produtos:', error)
+          setProdutos([])
+        } else if (data) {
+          setProdutos(data as Produto[])
+        }
+      } catch (err) {
+        console.error('Erro inesperado:', err)
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     carregarProdutos()
   }, [barracaId])
 
-  // 🔥 ORDEM FIXA DAS CATEGORIAS (PRIORIDADE TOTAL)
   const categorias = useMemo(() => {
     const categoriasBanco = Array.from(
       new Set(produtos.map(p => (p.categoria || '').toLowerCase()))
@@ -95,30 +105,28 @@ export default function CardapioCliente() {
       'sobremesas',
     ]
 
-    const ordenadas = ordemFixa.filter(cat =>
-      cat === 'todas' || categoriasBanco.includes(cat)
+    return ordemFixa.filter(
+      (cat) => cat === 'todas' || categoriasBanco.includes(cat)
     )
-
-    return ordenadas
   }, [produtos])
 
   const produtosFiltrados =
     categoriaAtiva === 'todas'
       ? produtos
       : produtos.filter(
-          p => (p.categoria || '').toLowerCase() === categoriaAtiva
+          (p) => (p.categoria || '').toLowerCase() === categoriaAtiva
         )
 
   function alterarQuantidade(produto: Produto, delta: number) {
-    setCarrinho(prev => {
-      const existente = prev.find(i => i.produto.id === produto.id)
+    setCarrinho((prev) => {
+      const existente = prev.find((i) => i.produto.id === produto.id)
 
       if (existente) {
         const novaQtd = existente.quantidade + delta
         if (novaQtd <= 0) {
-          return prev.filter(i => i.produto.id !== produto.id)
+          return prev.filter((i) => i.produto.id !== produto.id)
         }
-        return prev.map(i =>
+        return prev.map((i) =>
           i.produto.id === produto.id
             ? { ...i, quantidade: novaQtd }
             : i
@@ -134,8 +142,8 @@ export default function CardapioCliente() {
   }
 
   function atualizarObservacao(produtoId: string, texto: string) {
-    setCarrinho(prev =>
-      prev.map(item =>
+    setCarrinho((prev) =>
+      prev.map((item) =>
         item.produto.id === produtoId
           ? { ...item, observacao: texto }
           : item
@@ -149,73 +157,86 @@ export default function CardapioCliente() {
   )
 
   async function enviarPedido() {
-    if (!barracaId) {
-      alert('Barraca não identificada.')
-      return
+    try {
+      if (!barracaId) {
+        alert('Barraca não identificada.')
+        return
+      }
+
+      if (!nomeCliente || !localEntrega) {
+        alert('Preencha seu nome e o local (ex: Guarda-sol 12)')
+        return
+      }
+
+      const { data: pedido, error } = await supabase
+        .from('pedidos')
+        .insert([
+          {
+            barraca_id: barracaId,
+            comanda: nomeCliente,
+            local: localEntrega,
+            total: total,
+            status: 'novo',
+          },
+        ])
+        .select()
+        .single()
+
+      if (error || !pedido) {
+        console.error(error)
+        alert('Erro ao enviar pedido')
+        return
+      }
+
+      const itens = carrinho.map((item) => ({
+        pedido_id: pedido.id,
+        produto_id: item.produto.id,
+        quantidade: item.quantidade,
+        preco_unitario: item.produto.preco,
+        observacoes: item.observacao,
+      }))
+
+      await supabase.from('itens_pedido').insert(itens)
+
+      alert('Pedido enviado com sucesso! 🌊')
+      setCarrinho([])
+    } catch (err) {
+      console.error('Erro ao enviar pedido:', err)
+      alert('Erro inesperado ao enviar pedido')
     }
-
-    if (!nomeCliente || !localEntrega) {
-      alert('Preencha seu nome e o local (ex: Guarda-sol 12)')
-      return
-    }
-
-    const { data: pedido, error } = await supabase
-      .from('pedidos')
-      .insert([
-        {
-          barraca_id: barracaId,
-          comanda: nomeCliente, // 🔥 AGORA SALVA O NOME
-          local: localEntrega,  // 🔥 AGORA SALVA GUARDA-SOL
-          total: total,
-          status: 'novo',
-        },
-      ])
-      .select()
-      .single()
-
-    if (error || !pedido) {
-      alert('Erro ao enviar pedido')
-      return
-    }
-
-    const itens = carrinho.map(item => ({
-      pedido_id: pedido.id,
-      produto_id: item.produto.id,
-      quantidade: item.quantidade,
-      preco_unitario: item.produto.preco,
-      observacoes: item.observacao,
-    }))
-
-    await supabase.from('itens_pedido').insert(itens)
-
-    alert('Pedido enviado com sucesso! 🌊')
-    setCarrinho([])
   }
 
   if (loading) {
-    return <h2 style={{ padding: 24, color: '#0d47a1' }}>Carregando cardápio...</h2>
+    return (
+      <h2 style={{ padding: 24, color: '#0d47a1' }}>
+        Carregando cardápio...
+      </h2>
+    )
   }
 
   return (
     <div style={container}>
       <h1 style={titulo}>PraiaFlow 🌊</h1>
-  
-      {/* 🖼️ BANNER DA CATEGORIA */}
+
+      {/* BANNER DINÂMICO */}
       <div style={bannerContainer}>
-        <img
+        <Image
           src={imagensCategoria[categoriaAtiva] || imagensCategoria['todas']}
           alt="Categoria"
+          fill
           style={bannerImagem}
+          sizes="100vw"
+          priority
         />
       </div>
-  
+
       <input
         style={input}
         placeholder="👤 Seu nome (comanda individual)"
         value={nomeCliente}
         onChange={(e) => setNomeCliente(e.target.value)}
       />
-  
+
       <input
         style={input}
         placeholder="📍 Ex: Guarda-sol 12 / Cadeira Azul"
@@ -224,48 +245,60 @@ export default function CardapioCliente() {
       />
 
       <div style={abasContainer}>
-        {categorias.map(cat => (
+        {categorias.map((cat) => (
           <button
             key={cat}
             onClick={() => setCategoriaAtiva(cat)}
             style={{
               ...aba,
-              background: categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
-              color: categoriaAtiva === cat ? '#fff' : '#0d47a1',
+              background:
+                categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
+              color:
+                categoriaAtiva === cat ? '#fff' : '#0d47a1',
             }}
           >
             {cat === 'todas'
               ? '📋 Todas'
-              : `${iconesCategoria[cat] || '🍽️'} ${formatarCategoria(cat)}`}
+              : `${iconesCategoria[cat] || '🍽️'} ${formatarCategoria(
+                  cat
+                )}`}
           </button>
         ))}
       </div>
 
-      {produtosFiltrados.map(produto => {
-        const item = carrinho.find(i => i.produto.id === produto.id)
+      {produtosFiltrados.map((produto) => {
+        const item = carrinho.find(
+          (i) => i.produto.id === produto.id
+        )
         const qtd = item?.quantidade || 0
 
         return (
           <div key={produto.id} style={card}>
-            {/* 🔥 NOME + PREÇO NA MESMA LINHA */}
             <div style={linhaTopo}>
               <div style={nomeProduto}>{produto.nome}</div>
-              <div style={preco}>R$ {produto.preco}</div>
+              <div style={preco}>
+                R$ {produto.preco.toFixed(2)}
+              </div>
             </div>
 
             <textarea
-  placeholder="Observações (ex: sem gelo, água com gás, limão, ketchup...)"
-  value={item?.observacao || ''}
-  onChange={(e) =>
-    atualizarObservacao(produto.id, e.target.value)
-  }
-  style={textarea}
+              placeholder="Observações (ex: sem gelo, limão, ketchup...)"
+              value={item?.observacao || ''}
+              onChange={(e) =>
+                atualizarObservacao(
+                  produto.id,
+                  e.target.value
+                )
+              }
+              style={textarea}
             />
 
             <div style={controle}>
               <button
                 style={botaoMenos}
-                onClick={() => alterarQuantidade(produto, -1)}
+                onClick={() =>
+                  alterarQuantidade(produto, -1)
+                }
               >
                 −
               </button>
@@ -274,7 +307,9 @@ export default function CardapioCliente() {
 
               <button
                 style={botaoMais}
-                onClick={() => alterarQuantidade(produto, 1)}
+                onClick={() =>
+                  alterarQuantidade(produto, 1)
+                }
               >
                 +
               </button>
@@ -312,6 +347,19 @@ const titulo = {
   fontWeight: 900,
   color: '#0d47a1',
   marginBottom: 16,
+}
+
+const bannerContainer = {
+  position: 'relative' as const,
+  width: '100%',
+  height: 160,
+  borderRadius: 20,
+  overflow: 'hidden' as const,
+  marginBottom: 16,
+}
+
+const bannerImagem = {
+  objectFit: 'cover' as const,
 }
 
 const input = {
