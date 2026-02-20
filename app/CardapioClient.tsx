@@ -352,7 +352,7 @@ const titulo = {
 const bannerContainer = {
   position: 'relative' as const,
   width: '100%',
-  height: 160,
+  height: 200,
   borderRadius: 20,
   overflow: 'hidden' as const,
   marginBottom: 16,
@@ -360,6 +360,7 @@ const bannerContainer = {
 
 const bannerImagem = {
   objectFit: 'cover' as const,
+  transition: 'opacity 0.4s ease-in-out',
 }
 
 const input = {
