@@ -36,6 +36,17 @@ const iconesCategoria: Record<string, string> = {
   'sobremesas': '🍰',
 }
 
+const imagensCategoria: Record<string, string> = {
+  'todas': '/banners/todas.jpg',
+  'guarda-sol': '/banners/guarda-sol.jpg',
+  'cadeiras de praia': '/banners/cadeiras.jpg',
+  'bebidas não alcoólicas': '/banners/bebidas-nao-alcoolicas.jpg',
+  'bebidas alcoólicas': '/banners/bebidas-alcoolicas.jpg',
+  'para petiscar': '/banners/petiscos.jpg',
+  'pratos': '/banners/pratos.jpg',
+  'sobremesas': '/banners/sobremesas.jpg',
+}
+
 export default function CardapioCliente() {
   const searchParams = useSearchParams()
   const barracaId = searchParams.get('barraca')
@@ -188,6 +199,22 @@ export default function CardapioCliente() {
   return (
     <div style={container}>
       <h1 style={titulo}>PraiaFlow 🌊</h1>
+      return (
+  <div style={container}>
+    <h1 style={titulo}>PraiaFlow 🌊</h1>
+
+    {/* 🖼️ IMAGEM DINÂMICA DA CATEGORIA */}
+    <div style={bannerContainer}>
+      <img
+        src={imagensCategoria[categoriaAtiva] || imagensCategoria['todas']}
+        alt="Categoria"
+        style={bannerImagem}
+      />
+    </div>
+
+    <input
+      style={input}
+      placeholder="👤 Seu nome (comanda individual)"
 
       <input
         style={input}
