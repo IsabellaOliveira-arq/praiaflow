@@ -5,14 +5,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
-function formatarCategoria(texto: string) {
-  if (!texto) return 'Outros'
-
-  return texto
-    .toLowerCase()
-    .replace(/^\w/, (c) => c.toUpperCase())
-}
-
 type Produto = {
   id: string
   nome: string
@@ -25,27 +17,7 @@ type ItemCarrinho = {
   produto: Produto
   quantidade: number
   observacao: string
-}
-
-const iconesCategoria: Record<string, string> = {
-  'cadeiras de praia': '🏖️',
-  'guarda-sol': '⛱️',
-  'bebidas alcoólicas': '🍹',
-  'bebidas não alcoólicas': '🥤',
-  'para petiscar': '🍤',
-  'pratos': '🍽️',
-  'sobremesas': '🍰',
-}
-
-const imagensCategoria: Record<string, string> = {
-  'todas': '/banners/todas.jpg',
-  'guarda-sol': '/banners/guarda-sol.jpg',
-  'cadeiras de praia': '/banners/cadeiras.jpg',
-  'bebidas não alcoólicas': '/banners/bebidas-nao-alcoolicas.jpg',
-  'bebidas alcoólicas': '/banners/bebidas-alcoolicas.jpg',
-  'para petiscar': '/banners/petiscos.jpg',
-  'pratos': '/banners/pratos.jpg',
-  'sobremesas': '/banners/sobremesas.jpg',
+  opcaoSelecionada?: string
 }
 
 export default function CardapioCliente() {
@@ -53,6 +25,7 @@ export default function CardapioCliente() {
   const barracaId = searchParams.get('barraca')
 
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [opcoes, setOpcoes] = useState<Record<string, string[]>>({})
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todas')
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [nomeCliente, setNomeCliente] = useState('')
@@ -60,73 +33,96 @@ export default function CardapioCliente() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function carregarProdutos() {
-      try {
-        if (!barracaId) {
-          setLoading(false)
-          return
-        }
-
-        const { data, error } = await supabase
-          .from('produtos')
-          .select('*')
-          .eq('barraca_id', barracaId)
-          .eq('ativo', true)
-
-        if (error) {
-          console.error('Erro ao carregar produtos:', error)
-          setProdutos([])
-        } else if (data) {
-          setProdutos(data as Produto[])
-        }
-      } catch (err) {
-        console.error('Erro inesperado:', err)
-      } finally {
+    async function carregarDados() {
+      if (!barracaId) {
         setLoading(false)
+        return
       }
+
+      const { data: produtosData } = await supabase
+        .from('produtos')
+        .select('*')
+        .eq('barraca_id', barracaId)
+        .eq('ativo', true)
+
+      if (produtosData) setProdutos(produtosData)
+
+      const { data: opcoesData } = await supabase
+        .from('opcoes_produto')
+        .select('produto_id, nome')
+        .eq('ativo', true)
+
+      if (opcoesData) {
+        const agrupadas: Record<string, string[]> = {}
+        opcoesData.forEach((op) => {
+          if (!agrupadas[op.produto_id]) {
+            agrupadas[op.produto_id] = []
+          }
+          agrupadas[op.produto_id].push(op.nome)
+        })
+        setOpcoes(agrupadas)
+      }
+
+      setLoading(false)
     }
 
-    carregarProdutos()
+    carregarDados()
   }, [barracaId])
 
   const categorias = useMemo(() => {
-    const categoriasBanco = Array.from(
+    const unicas = Array.from(
       new Set(produtos.map(p => (p.categoria || '').toLowerCase()))
     )
-
-    const ordemFixa = [
-      'todas',
-      'guarda-sol',
-      'cadeiras de praia',
-      'bebidas não alcoólicas',
-      'bebidas alcoólicas',
-      'para petiscar',
-      'pratos',
-      'sobremesas',
-    ]
-
-    return ordemFixa.filter(
-      (cat) => cat === 'todas' || categoriasBanco.includes(cat)
-    )
+    return ['todas', ...unicas]
   }, [produtos])
 
   const produtosFiltrados =
     categoriaAtiva === 'todas'
       ? produtos
       : produtos.filter(
-          (p) => (p.categoria || '').toLowerCase() === categoriaAtiva
+          p => (p.categoria || '').toLowerCase() === categoriaAtiva
         )
 
+  function selecionarOpcao(produto: Produto, opcao: string) {
+    setCarrinho(prev => {
+      const existente = prev.find(i => i.produto.id === produto.id)
+
+      if (existente) {
+        return prev.map(i =>
+          i.produto.id === produto.id
+            ? { ...i, opcaoSelecionada: opcao }
+            : i
+        )
+      }
+
+      return [
+        ...prev,
+        {
+          produto,
+          quantidade: 0,
+          observacao: '',
+          opcaoSelecionada: opcao,
+        },
+      ]
+    })
+  }
+
   function alterarQuantidade(produto: Produto, delta: number) {
-    setCarrinho((prev) => {
-      const existente = prev.find((i) => i.produto.id === produto.id)
+    setCarrinho(prev => {
+      const existente = prev.find(i => i.produto.id === produto.id)
+      const temOpcoes = opcoes[produto.id]?.length > 0
+
+      if (temOpcoes && !existente?.opcaoSelecionada) {
+        alert('Selecione uma opção primeiro.')
+        return prev
+      }
 
       if (existente) {
         const novaQtd = existente.quantidade + delta
         if (novaQtd <= 0) {
-          return prev.filter((i) => i.produto.id !== produto.id)
+          return prev.filter(i => i.produto.id !== produto.id)
         }
-        return prev.map((i) =>
+        return prev.map(i =>
           i.produto.id === produto.id
             ? { ...i, quantidade: novaQtd }
             : i
@@ -134,7 +130,15 @@ export default function CardapioCliente() {
       }
 
       if (delta > 0) {
-        return [...prev, { produto, quantidade: 1, observacao: '' }]
+        return [
+          ...prev,
+          {
+            produto,
+            quantidade: 1,
+            observacao: '',
+            opcaoSelecionada: undefined,
+          },
+        ]
       }
 
       return prev
@@ -142,8 +146,8 @@ export default function CardapioCliente() {
   }
 
   function atualizarObservacao(produtoId: string, texto: string) {
-    setCarrinho((prev) =>
-      prev.map((item) =>
+    setCarrinho(prev =>
+      prev.map(item =>
         item.produto.id === produtoId
           ? { ...item, observacao: texto }
           : item
@@ -157,120 +161,60 @@ export default function CardapioCliente() {
   )
 
   async function enviarPedido() {
-    try {
-      if (!barracaId) {
-        alert('Barraca não identificada.')
-        return
-      }
+    if (!barracaId) return
 
-      if (!nomeCliente || !localEntrega) {
-        alert('Preencha seu nome e o local (ex: Guarda-sol 12)')
-        return
-      }
-
-      const { data: pedido, error } = await supabase
-        .from('pedidos')
-        .insert([
-          {
-            barraca_id: barracaId,
-            comanda: nomeCliente,
-            local: localEntrega,
-            total: total,
-            status: 'novo',
-          },
-        ])
-        .select()
-        .single()
-
-      if (error || !pedido) {
-        console.error(error)
-        alert('Erro ao enviar pedido')
-        return
-      }
-
-      const itens = carrinho.map((item) => ({
-        pedido_id: pedido.id,
-        produto_id: item.produto.id,
-        quantidade: item.quantidade,
-        preco_unitario: item.produto.preco,
-        observacoes: item.observacao,
-      }))
-
-      await supabase.from('itens_pedido').insert(itens)
-
-      alert('Pedido enviado com sucesso! 🌊')
-      setCarrinho([])
-    } catch (err) {
-      console.error('Erro ao enviar pedido:', err)
-      alert('Erro inesperado ao enviar pedido')
-    }
-  }
-
-  if (loading) {
-    return (
-      <h2 style={{ padding: 24, color: '#0d47a1' }}>
-        Carregando cardápio...
-      </h2>
+    const itensInvalidos = carrinho.some(item =>
+      opcoes[item.produto.id]?.length > 0 &&
+      !item.opcaoSelecionada
     )
+
+    if (itensInvalidos) {
+      alert('Selecione as opções obrigatórias.')
+      return
+    }
+
+    const { data: pedido } = await supabase
+      .from('pedidos')
+      .insert([
+        {
+          barraca_id: barracaId,
+          comanda: nomeCliente,
+          local: localEntrega,
+          total,
+          status: 'novo',
+        },
+      ])
+      .select()
+      .single()
+
+    if (!pedido) return
+
+    const itens = carrinho.map(item => ({
+      pedido_id: pedido.id,
+      produto_id: item.produto.id,
+      quantidade: item.quantidade,
+      preco_unitario: item.produto.preco,
+      observacoes: item.opcaoSelecionada
+        ? `Opção: ${item.opcaoSelecionada} | ${item.observacao}`
+        : item.observacao,
+    }))
+
+    await supabase.from('itens_pedido').insert(itens)
+
+    alert('Pedido enviado!')
+    setCarrinho([])
   }
+
+  if (loading) return <h2>Carregando...</h2>
 
   return (
     <div style={container}>
       <h1 style={titulo}>PraiaFlow 🌊</h1>
 
-      {/* BANNER DINÂMICO */}
-      <div style={bannerContainer}>
-        <Image
-          src={imagensCategoria[categoriaAtiva] || imagensCategoria['todas']}
-          alt="Categoria"
-          fill
-          style={bannerImagem}
-          sizes="100vw"
-          priority
-        />
-      </div>
-
-      <input
-        style={input}
-        placeholder="👤 Seu nome (comanda individual)"
-        value={nomeCliente}
-        onChange={(e) => setNomeCliente(e.target.value)}
-      />
-
-      <input
-        style={input}
-        placeholder="📍 Ex: Guarda-sol 12 / Cadeira Azul"
-        value={localEntrega}
-        onChange={(e) => setLocalEntrega(e.target.value)}
-      />
-
-      <div style={abasContainer}>
-        {categorias.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategoriaAtiva(cat)}
-            style={{
-              ...aba,
-              background:
-                categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
-              color:
-                categoriaAtiva === cat ? '#fff' : '#0d47a1',
-            }}
-          >
-            {cat === 'todas'
-              ? '📋 Todas'
-              : `${iconesCategoria[cat] || '🍽️'} ${formatarCategoria(
-                  cat
-                )}`}
-          </button>
-        ))}
-      </div>
-
-      {produtosFiltrados.map((produto) => {
-        const item = carrinho.find(
-          (i) => i.produto.id === produto.id
-        )
+      {produtosFiltrados.map(produto => {
+        const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
+        const opcoesProduto = opcoes[produto.id] || []
 
         return (
           <div key={produto.id} style={card}>
@@ -281,14 +225,29 @@ export default function CardapioCliente() {
               </div>
             </div>
 
+            {opcoesProduto.length > 0 && (
+              <div style={radioGroup}>
+                {opcoesProduto.map(opcao => (
+                  <label key={opcao} style={radioItem}>
+                    <input
+                      type="radio"
+                      name={`opcao-${produto.id}`}
+                      checked={item?.opcaoSelecionada === opcao}
+                      onChange={() =>
+                        selecionarOpcao(produto, opcao)
+                      }
+                    />
+                    <span>{opcao}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
             <textarea
-              placeholder="Observações (ex: sem gelo, limão, ketchup...)"
+              placeholder="Observações..."
               value={item?.observacao || ''}
               onChange={(e) =>
-                atualizarObservacao(
-                  produto.id,
-                  e.target.value
-                )
+                atualizarObservacao(produto.id, e.target.value)
               }
               style={textarea}
             />
@@ -296,9 +255,7 @@ export default function CardapioCliente() {
             <div style={controle}>
               <button
                 style={botaoMenos}
-                onClick={() =>
-                  alterarQuantidade(produto, -1)
-                }
+                onClick={() => alterarQuantidade(produto, -1)}
               >
                 −
               </button>
@@ -307,9 +264,7 @@ export default function CardapioCliente() {
 
               <button
                 style={botaoMais}
-                onClick={() =>
-                  alterarQuantidade(produto, 1)
-                }
+                onClick={() => alterarQuantidade(produto, 1)}
               >
                 +
               </button>
@@ -320,12 +275,9 @@ export default function CardapioCliente() {
 
       {carrinho.length > 0 && (
         <div style={carrinhoBox}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>
-            Total: R$ {total.toFixed(2)}
-          </div>
-
+          <div>Total: R$ {total.toFixed(2)}</div>
           <button style={botaoEnviar} onClick={enviarPedido}>
-            Enviar Pedido 🏖️
+            Enviar Pedido
           </button>
         </div>
       )}
@@ -333,159 +285,18 @@ export default function CardapioCliente() {
   )
 }
 
-/* ESTILOS */
-const container = {
-  maxWidth: 520,
-  margin: '0 auto',
-  padding: 16,
-  background: '#f4f8ff',
-  minHeight: '100vh',
-}
-
-const titulo = {
-  fontSize: 30,
-  fontWeight: 900,
-  color: '#0d47a1',
-  marginBottom: 16,
-}
-
-const bannerContainer = {
-  position: 'relative' as const,
-  width: '100%',
-  height: 200,
-  borderRadius: 20,
-  overflow: 'hidden' as const,
-  marginBottom: 16,
-}
-
-const bannerImagem = {
-  objectFit: 'cover' as const,
-  transition: 'opacity 0.4s ease-in-out',
-}
-
-const input = {
-  width: '100%',
-  padding: 14,
-  borderRadius: 14,
-  border: '2px solid #bbdefb',
-  marginBottom: 12,
-  fontSize: 16,
-  background: '#ffffff',
-  color: '#0d1b2a',
-}
-
-const abasContainer = {
-  display: 'flex',
-  gap: 8,
-  overflowX: 'auto' as const,
-  marginBottom: 20,
-}
-
-const aba = {
-  padding: '10px 16px',
-  borderRadius: 999,
-  border: 'none',
-  fontWeight: 700,
-  whiteSpace: 'nowrap' as const,
-  cursor: 'pointer',
-}
-
-const card = {
-  background: '#ffffff',
-  borderRadius: 20,
-  padding: 18,
-  marginBottom: 16,
-  boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
-}
-
-const linhaTopo = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: 12,
-  marginBottom: 8,
-}
-
-const nomeProduto = {
-  fontSize: 20,
-  fontWeight: 800,
-  color: '#0d1b2a',
-  flex: 1,
-}
-
-const preco = {
-  fontSize: 22,
-  fontWeight: 900,
-  color: '#1565c0',
-  whiteSpace: 'nowrap' as const,
-}
-
-const textarea = {
-  width: '100%',
-  padding: 12,
-  borderRadius: 12,
-  border: '1px solid #cbd5e1',
-  marginBottom: 12,
-  background: '#ffffff',
-  color: '#0d1b2a',
-}
-
-const controle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-}
-
-const botaoMenos = {
-  width: 44,
-  height: 44,
-  borderRadius: 12,
-  border: 'none',
-  background: '#e3f2fd',
-  fontSize: 20,
-  fontWeight: 'bold',
-  cursor: 'pointer',
-}
-
-const botaoMais = {
-  width: 44,
-  height: 44,
-  borderRadius: 12,
-  border: 'none',
-  background: '#1565c0',
-  color: '#fff',
-  fontSize: 20,
-  fontWeight: 'bold',
-  cursor: 'pointer',
-}
-
-const quantidade = {
-  fontSize: 18,
-  fontWeight: 900,
-  color: '#0d47a1',
-}
-
-const carrinhoBox = {
-  position: 'fixed' as const,
-  bottom: 16,
-  left: 16,
-  right: 16,
-  background: '#0d47a1',
-  color: '#fff',
-  padding: 18,
-  borderRadius: 20,
-  boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-}
-
-const botaoEnviar = {
-  width: '100%',
-  marginTop: 10,
-  padding: 16,
-  borderRadius: 14,
-  border: 'none',
-  background: '#1565c0',
-  color: '#fff',
-  fontSize: 18,
-  fontWeight: 'bold',
-  cursor: 'pointer',
-}
+const container = { maxWidth: 520, margin: '0 auto', padding: 16 }
+const titulo = { fontSize: 28, fontWeight: 900, marginBottom: 16 }
+const card = { background: '#fff', padding: 16, marginBottom: 16, borderRadius: 16 }
+const linhaTopo = { display: 'flex', justifyContent: 'space-between', marginBottom: 8 }
+const nomeProduto = { fontWeight: 800 }
+const preco = { fontWeight: 900 }
+const radioGroup = { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 10 }
+const radioItem = { display: 'flex', gap: 6, alignItems: 'center' }
+const textarea = { width: '100%', marginBottom: 12 }
+const controle = { display: 'flex', gap: 12, alignItems: 'center' }
+const botaoMenos = { width: 40, height: 40 }
+const botaoMais = { width: 40, height: 40 }
+const quantidade = { fontWeight: 900 }
+const carrinhoBox = { position: 'fixed' as const, bottom: 10, left: 10, right: 10, background: '#1565c0', color: '#fff', padding: 16, borderRadius: 16 }
+const botaoEnviar = { width: '100%', padding: 12 }
