@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
+function formatarCategoria(texto: string) {
+  if (!texto) return 'Outros'
+  return texto.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
+}
+
 type Produto = {
   id: string
   nome: string
@@ -18,6 +23,27 @@ type ItemCarrinho = {
   quantidade: number
   observacao: string
   opcaoSelecionada?: string
+}
+
+const iconesCategoria: Record<string, string> = {
+  'cadeiras de praia': '🏖️',
+  'guarda-sol': '⛱️',
+  'bebidas alcoólicas': '🍹',
+  'bebidas não alcoólicas': '🥤',
+  'para petiscar': '🍤',
+  'pratos': '🍽️',
+  'sobremesas': '🍰',
+}
+
+const imagensCategoria: Record<string, string> = {
+  'todas': '/banners/todas.jpg',
+  'guarda-sol': '/banners/guarda-sol.jpg',
+  'cadeiras de praia': '/banners/cadeiras.jpg',
+  'bebidas não alcoólicas': '/banners/bebidas-nao-alcoolicas.jpg',
+  'bebidas alcoólicas': '/banners/bebidas-alcoolicas.jpg',
+  'para petiscar': '/banners/petiscos.jpg',
+  'pratos': '/banners/pratos.jpg',
+  'sobremesas': '/banners/sobremesas.jpg',
 }
 
 export default function CardapioCliente() {
@@ -70,30 +96,47 @@ export default function CardapioCliente() {
   }, [barracaId])
 
   const categorias = useMemo(() => {
-    const unicas = Array.from(
+    const categoriasBanco = Array.from(
       new Set(produtos.map(p => (p.categoria || '').toLowerCase()))
     )
-    return ['todas', ...unicas]
+
+    const ordemFixa = [
+      'todas',
+      'guarda-sol',
+      'cadeiras de praia',
+      'bebidas não alcoólicas',
+      'bebidas alcoólicas',
+      'para petiscar',
+      'pratos',
+      'sobremesas',
+    ]
+
+    return ordemFixa.filter(
+      (cat) => cat === 'todas' || categoriasBanco.includes(cat)
+    )
   }, [produtos])
 
   const produtosFiltrados =
     categoriaAtiva === 'todas'
       ? produtos
       : produtos.filter(
-          p => (p.categoria || '').toLowerCase() === categoriaAtiva
+          (p) => (p.categoria || '').toLowerCase() === categoriaAtiva
         )
 
-  function selecionarOpcao(produto: Produto, opcao: string) {
-    setCarrinho(prev => {
-      const existente = prev.find(i => i.produto.id === produto.id)
+  function selecionarOpcao(produtoId: string, opcao: string) {
+    setCarrinho((prev) => {
+      const existente = prev.find(i => i.produto.id === produtoId)
 
       if (existente) {
         return prev.map(i =>
-          i.produto.id === produto.id
+          i.produto.id === produtoId
             ? { ...i, opcaoSelecionada: opcao }
             : i
         )
       }
+
+      const produto = produtos.find(p => p.id === produtoId)
+      if (!produto) return prev
 
       return [
         ...prev,
@@ -108,12 +151,12 @@ export default function CardapioCliente() {
   }
 
   function alterarQuantidade(produto: Produto, delta: number) {
-    setCarrinho(prev => {
+    setCarrinho((prev) => {
       const existente = prev.find(i => i.produto.id === produto.id)
       const temOpcoes = opcoes[produto.id]?.length > 0
 
       if (temOpcoes && !existente?.opcaoSelecionada) {
-        alert('Selecione uma opção primeiro.')
+        alert('Selecione o tipo antes de adicionar.')
         return prev
       }
 
@@ -122,6 +165,7 @@ export default function CardapioCliente() {
         if (novaQtd <= 0) {
           return prev.filter(i => i.produto.id !== produto.id)
         }
+
         return prev.map(i =>
           i.produto.id === produto.id
             ? { ...i, quantidade: novaQtd }
@@ -146,8 +190,8 @@ export default function CardapioCliente() {
   }
 
   function atualizarObservacao(produtoId: string, texto: string) {
-    setCarrinho(prev =>
-      prev.map(item =>
+    setCarrinho((prev) =>
+      prev.map((item) =>
         item.produto.id === produtoId
           ? { ...item, observacao: texto }
           : item
@@ -169,7 +213,7 @@ export default function CardapioCliente() {
     )
 
     if (itensInvalidos) {
-      alert('Selecione as opções obrigatórias.')
+      alert('Selecione todas as opções obrigatórias.')
       return
     }
 
@@ -189,7 +233,7 @@ export default function CardapioCliente() {
 
     if (!pedido) return
 
-    const itens = carrinho.map(item => ({
+    const itens = carrinho.map((item) => ({
       pedido_id: pedido.id,
       produto_id: item.produto.id,
       quantidade: item.quantidade,
@@ -201,17 +245,64 @@ export default function CardapioCliente() {
 
     await supabase.from('itens_pedido').insert(itens)
 
-    alert('Pedido enviado!')
+    alert('Pedido enviado com sucesso! 🌊')
     setCarrinho([])
   }
 
-  if (loading) return <h2>Carregando...</h2>
+  if (loading) {
+    return <h2 style={{ padding: 24 }}>Carregando cardápio...</h2>
+  }
 
   return (
     <div style={container}>
       <h1 style={titulo}>PraiaFlow 🌊</h1>
 
-      {produtosFiltrados.map(produto => {
+      <div style={bannerContainer}>
+        <Image
+          src={imagensCategoria[categoriaAtiva] || imagensCategoria['todas']}
+          alt="Categoria"
+          fill
+          style={bannerImagem}
+          sizes="100vw"
+          priority
+        />
+      </div>
+
+      <input
+        style={input}
+        placeholder="👤 Seu nome"
+        value={nomeCliente}
+        onChange={(e) => setNomeCliente(e.target.value)}
+      />
+
+      <input
+        style={input}
+        placeholder="📍 Ex: Guarda-sol 12"
+        value={localEntrega}
+        onChange={(e) => setLocalEntrega(e.target.value)}
+      />
+
+      <div style={abasContainer}>
+        {categorias.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoriaAtiva(cat)}
+            style={{
+              ...aba,
+              background:
+                categoriaAtiva === cat ? '#1565c0' : '#e3f2fd',
+              color:
+                categoriaAtiva === cat ? '#fff' : '#0d47a1',
+            }}
+          >
+            {cat === 'todas'
+              ? '📋 Todas'
+              : `${iconesCategoria[cat] || '🍽️'} ${formatarCategoria(cat)}`}
+          </button>
+        ))}
+      </div>
+
+      {produtosFiltrados.map((produto) => {
         const item = carrinho.find(i => i.produto.id === produto.id)
         const qtd = item?.quantidade || 0
         const opcoesProduto = opcoes[produto.id] || []
@@ -226,25 +317,39 @@ export default function CardapioCliente() {
             </div>
 
             {opcoesProduto.length > 0 && (
-              <div style={radioGroup}>
-                {opcoesProduto.map(opcao => (
-                  <label key={opcao} style={radioItem}>
-                    <input
-                      type="radio"
-                      name={`opcao-${produto.id}`}
-                      checked={item?.opcaoSelecionada === opcao}
-                      onChange={() =>
-                        selecionarOpcao(produto, opcao)
+              <div style={boxOpcoes}>
+                {opcoesProduto.map((opcao) => {
+                  const selecionada =
+                    item?.opcaoSelecionada === opcao
+
+                  return (
+                    <button
+                      key={opcao}
+                      onClick={() =>
+                        selecionarOpcao(produto.id, opcao)
                       }
-                    />
-                    <span>{opcao}</span>
-                  </label>
-                ))}
+                      style={{
+                        ...botaoOpcao,
+                        background: selecionada
+                          ? '#1565c0'
+                          : '#e3f2fd',
+                        color: selecionada
+                          ? '#fff'
+                          : '#0d47a1',
+                        border: selecionada
+                          ? '2px solid #0d47a1'
+                          : 'none',
+                      }}
+                    >
+                      {opcao}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
             <textarea
-              placeholder="Observações..."
+              placeholder="Observações (ex: pouco gelo...)"
               value={item?.observacao || ''}
               onChange={(e) =>
                 atualizarObservacao(produto.id, e.target.value)
@@ -255,7 +360,9 @@ export default function CardapioCliente() {
             <div style={controle}>
               <button
                 style={botaoMenos}
-                onClick={() => alterarQuantidade(produto, -1)}
+                onClick={() =>
+                  alterarQuantidade(produto, -1)
+                }
               >
                 −
               </button>
@@ -264,7 +371,9 @@ export default function CardapioCliente() {
 
               <button
                 style={botaoMais}
-                onClick={() => alterarQuantidade(produto, 1)}
+                onClick={() =>
+                  alterarQuantidade(produto, 1)
+                }
               >
                 +
               </button>
@@ -275,28 +384,14 @@ export default function CardapioCliente() {
 
       {carrinho.length > 0 && (
         <div style={carrinhoBox}>
-          <div>Total: R$ {total.toFixed(2)}</div>
+          <div style={{ fontWeight: 800 }}>
+            Total: R$ {total.toFixed(2)}
+          </div>
           <button style={botaoEnviar} onClick={enviarPedido}>
-            Enviar Pedido
+            Enviar Pedido 🏖️
           </button>
         </div>
       )}
     </div>
   )
 }
-
-const container = { maxWidth: 520, margin: '0 auto', padding: 16 }
-const titulo = { fontSize: 28, fontWeight: 900, marginBottom: 16 }
-const card = { background: '#fff', padding: 16, marginBottom: 16, borderRadius: 16 }
-const linhaTopo = { display: 'flex', justifyContent: 'space-between', marginBottom: 8 }
-const nomeProduto = { fontWeight: 800 }
-const preco = { fontWeight: 900 }
-const radioGroup = { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 10 }
-const radioItem = { display: 'flex', gap: 6, alignItems: 'center' }
-const textarea = { width: '100%', marginBottom: 12 }
-const controle = { display: 'flex', gap: 12, alignItems: 'center' }
-const botaoMenos = { width: 40, height: 40 }
-const botaoMais = { width: 40, height: 40 }
-const quantidade = { fontWeight: 900 }
-const carrinhoBox = { position: 'fixed' as const, bottom: 10, left: 10, right: 10, background: '#1565c0', color: '#fff', padding: 16, borderRadius: 16 }
-const botaoEnviar = { width: '100%', padding: 12 }
