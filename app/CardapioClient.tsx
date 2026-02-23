@@ -311,34 +311,22 @@ export default function CardapioCliente() {
           <div key={produto.id} style={card}>
             <div style={linhaTopo}>
               <div style={nomeProduto}>{produto.nome}</div>
-              <div style={preco}>
-                R$ {produto.preco.toFixed(2)}
-              </div>
+              <div style={preco}>R$ {produto.preco.toFixed(2)}</div>
             </div>
 
             {opcoesProduto.length > 0 && (
               <div style={boxOpcoes}>
                 {opcoesProduto.map((opcao) => {
-                  const selecionada =
-                    item?.opcaoSelecionada === opcao
-
+                  const selecionada = item?.opcaoSelecionada === opcao
                   return (
                     <button
                       key={opcao}
-                      onClick={() =>
-                        selecionarOpcao(produto.id, opcao)
-                      }
+                      onClick={() => selecionarOpcao(produto.id, opcao)}
                       style={{
                         ...botaoOpcao,
-                        background: selecionada
-                          ? '#1565c0'
-                          : '#e3f2fd',
-                        color: selecionada
-                          ? '#fff'
-                          : '#0d47a1',
-                        border: selecionada
-                          ? '2px solid #0d47a1'
-                          : 'none',
+                        background: selecionada ? '#1565c0' : '#e3f2fd',
+                        color: selecionada ? '#fff' : '#0d47a1',
+                        border: selecionada ? '2px solid #0d47a1' : 'none',
                       }}
                     >
                       {opcao}
@@ -349,7 +337,7 @@ export default function CardapioCliente() {
             )}
 
             <textarea
-              placeholder="Observações (ex: pouco gelo...)"
+              placeholder="Observações..."
               value={item?.observacao || ''}
               onChange={(e) =>
                 atualizarObservacao(produto.id, e.target.value)
@@ -358,25 +346,9 @@ export default function CardapioCliente() {
             />
 
             <div style={controle}>
-              <button
-                style={botaoMenos}
-                onClick={() =>
-                  alterarQuantidade(produto, -1)
-                }
-              >
-                −
-              </button>
-
+              <button style={botaoMenos} onClick={() => alterarQuantidade(produto, -1)}>−</button>
               <span style={quantidade}>{qtd}</span>
-
-              <button
-                style={botaoMais}
-                onClick={() =>
-                  alterarQuantidade(produto, 1)
-                }
-              >
-                +
-              </button>
+              <button style={botaoMais} onClick={() => alterarQuantidade(produto, 1)}>+</button>
             </div>
           </div>
         )
@@ -395,3 +367,24 @@ export default function CardapioCliente() {
     </div>
   )
 }
+
+const container = { maxWidth: 520, margin: '0 auto', padding: 16, background: '#f4f8ff', minHeight: '100vh' }
+const titulo = { fontSize: 30, fontWeight: 900, color: '#0d47a1', marginBottom: 16 }
+const bannerContainer = { position: 'relative' as const, width: '100%', height: 160, borderRadius: 20, overflow: 'hidden' as const, marginBottom: 16 }
+const bannerImagem = { objectFit: 'cover' as const }
+const input = { width: '100%', padding: 14, borderRadius: 14, border: '2px solid #bbdefb', marginBottom: 12 }
+const abasContainer = { display: 'flex', gap: 8, overflowX: 'auto' as const, marginBottom: 20 }
+const aba = { padding: '10px 16px', borderRadius: 999, border: 'none', fontWeight: 700, whiteSpace: 'nowrap' as const }
+const card = { background: '#fff', borderRadius: 20, padding: 18, marginBottom: 16, boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }
+const linhaTopo = { display: 'flex', justifyContent: 'space-between', marginBottom: 8 }
+const nomeProduto = { fontSize: 20, fontWeight: 800 }
+const preco = { fontSize: 22, fontWeight: 900, color: '#1565c0' }
+const boxOpcoes = { display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }
+const botaoOpcao = { padding: '6px 12px', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', background: '#e3f2fd' }
+const textarea = { width: '100%', padding: 12, borderRadius: 12, border: '1px solid #cbd5e1', marginBottom: 12 }
+const controle = { display: 'flex', alignItems: 'center', gap: 12 }
+const botaoMenos = { width: 44, height: 44, borderRadius: 12, border: 'none', background: '#e3f2fd', fontSize: 20 }
+const botaoMais = { width: 44, height: 44, borderRadius: 12, border: 'none', background: '#1565c0', color: '#fff', fontSize: 20 }
+const quantidade = { fontSize: 18, fontWeight: 900 }
+const carrinhoBox = { position: 'fixed' as const, bottom: 16, left: 16, right: 16, background: '#0d47a1', color: '#fff', padding: 18, borderRadius: 20 }
+const botaoEnviar = { width: '100%', marginTop: 10, padding: 16, borderRadius: 14, border: 'none', background: '#1565c0', color: '#fff', fontSize: 18, fontWeight: 'bold' }
